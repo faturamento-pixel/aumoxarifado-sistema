@@ -225,13 +225,16 @@ th{background:#5a4fa3;color:white}
 
 </div>
 
-<div id="modalNota" class="modal-img" onclick="fecharNota()">
+<div id="modalNota" class="modal-img">
   <div class="modal-img-box">
     <img id="imagemNota">
     <br><br>
-    <a id="downloadNota" target="_blank">
+    <button onclick="notaAnterior()">⬅ Anterior</button>
+    <button onclick="proximaNota()">Próxima ➡</button>
+    <a id="downloadNota" target="_blank" download>
       <button>Baixar Nota</button>
     </a>
+    <button onclick="fecharNota()" style="background:#c0392b;">Fechar</button>
   </div>
 </div>
 
@@ -253,14 +256,51 @@ function miniatura(url){
     : `<div class="sem-foto">+</div>`;
 }
 
-function abrirNota(url){
-  document.getElementById("modalNota").style.display="flex";
-  document.getElementById("imagemNota").src=url;
-  document.getElementById("downloadNota").href=url;
+let notasModal = [];
+let notaAtualIndex = 0;
+
+function abrirNotas(listaJson, primeiraUrl){
+  try{
+    notasModal = listaJson ? JSON.parse(listaJson) : [];
+  }catch(e){
+    notasModal = primeiraUrl ? [primeiraUrl] : [];
+  }
+
+  if(primeiraUrl && !notasModal.includes(primeiraUrl)){
+    notasModal.unshift(primeiraUrl);
+  }
+
+  if(notasModal.length === 0){
+    alert("Sem nota fiscal.");
+    return;
+  }
+
+  notaAtualIndex = 0;
+  mostrarNotaAtual();
+  document.getElementById("modalNota").style.display = "flex";
+}
+
+function mostrarNotaAtual(){
+  const url = notasModal[notaAtualIndex];
+
+  document.getElementById("imagemNota").src = url;
+  document.getElementById("downloadNota").href = url;
+}
+
+function proximaNota(){
+  if(notasModal.length === 0) return;
+  notaAtualIndex = (notaAtualIndex + 1) % notasModal.length;
+  mostrarNotaAtual();
+}
+
+function notaAnterior(){
+  if(notasModal.length === 0) return;
+  notaAtualIndex = (notaAtualIndex - 1 + notasModal.length) % notasModal.length;
+  mostrarNotaAtual();
 }
 
 function fecharNota(){
-  document.getElementById("modalNota").style.display="none";
+  document.getElementById("modalNota").style.display = "none";
 }
 
 function irPara(secao){
@@ -366,15 +406,12 @@ async function registrarMovimento(){
     }
   }
 
-  let listaNotas = [...notasAtuais];
+ let listaNotas = [...notasAtuais];
 
-const arquivos =
-Array.from(document.getElementById("mov-nota-file").files || []);
+const arquivos = Array.from(document.getElementById("mov-nota-file").files || []);
 
 for(const arquivo of arquivos){
-
   const url = await uploadNota(arquivo);
-
   listaNotas.push(url);
 }
 
@@ -466,7 +503,9 @@ async function pesquisarMovimentos(){
 
   data.forEach(m=>{
     const nota=m.nota_url
-      ? `<button onclick="abrirNota('${m.nota_url}')">Ver nota</button>
+      ? `<button onclick='abrirNotas(${JSON.stringify(JSON.stringify(m.nota_urls || ""))}, ${JSON.stringify(m.nota_url || "")})'>`
+  Ver nota
+</button>
          <a href="${m.nota_url}" target="_blank" download>
            <button>Baixar</button>
          </a>`
@@ -868,11 +907,11 @@ function limparUsuario(){
 }
 
 function removerNotaAtual(index){
+  notasAtuais.splice(index, 1);
 
-  notasAtuais.splice(index,1);
+  document.getElementById("mov-nota-url").value = JSON.stringify(notasAtuais);
 
   atualizarPreviewNotas();
-
 }
 </script>
 
