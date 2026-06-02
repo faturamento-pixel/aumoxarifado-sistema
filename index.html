@@ -124,6 +124,7 @@ th{background:#5a4fa3;color:white}
 
   <label>Foto da nota:</label>
   <input type="file" id="mov-nota-file" accept="image/*" multiple capture="environment">
+  <div id="preview-notas" class="galeria-preview"></div>
 
   <button onclick="registrarMovimento()">Registrar</button>
   <button onclick="limparMovimento()">Novo</button>
@@ -244,6 +245,7 @@ const supa = supabase.createClient(
 let usuarioLogado = null;
 let fotosSelecionadas = [];
 let fotosAtuais = [];
+let notasAtuais = [];
 
 function miniatura(url){
   return url
@@ -364,7 +366,17 @@ async function registrarMovimento(){
     }
   }
 
-  const arquivos = Array.from(document.getElementById("mov-nota-file").files || []);
+  let listaNotas = [...notasAtuais];
+
+const arquivos =
+Array.from(document.getElementById("mov-nota-file").files || []);
+
+for(const arquivo of arquivos){
+
+  const url = await uploadNota(arquivo);
+
+  listaNotas.push(url);
+}
 
   for(const arquivo of arquivos){
     const url = await uploadNota(arquivo);
@@ -380,8 +392,8 @@ async function registrarMovimento(){
     quantidade: Number(document.getElementById("mov-quantidade").value || 0),
     data_movimento: document.getElementById("mov-data").value,
     lote_interno: document.getElementById("mov-lote").value.trim(),
-    nota_url: notasAtuais[0] || "",
-    nota_urls: JSON.stringify(notasAtuais)
+    nota_url: listaNotas[0] || "",
+    nota_urls: JSON.stringify(listaNotas)
   };
 
   if(!dados.produto_id || !dados.codigo || !dados.quantidade || !dados.data_movimento){
@@ -503,6 +515,19 @@ async function editarMovimento(id){
   document.getElementById("mov-data").value=data.data_movimento;
   document.getElementById("mov-lote").value=data.lote_interno || "";
   document.getElementById("mov-preview").innerHTML=data.foto_capa ? `<img src="${data.foto_capa}">` : "+";
+  try{
+  notasAtuais = data.nota_urls
+    ? JSON.parse(data.nota_urls)
+    : [];
+}catch(e){
+  notasAtuais = [];
+}
+
+if(data.nota_url && !notasAtuais.includes(data.nota_url)){
+  notasAtuais.unshift(data.nota_url);
+}
+
+atualizarPreviewNotas();
 }
 
 async function excluirMovimento(id){
@@ -817,6 +842,37 @@ function limparUsuario(){
   document.getElementById("novo-user").value="";
   document.getElementById("nova-senha").value="";
   document.getElementById("role").value="user";
+}
+  function atualizarPreviewNotas(){
+
+  const box =
+  document.getElementById("preview-notas");
+
+  if(!box) return;
+
+  box.innerHTML = "";
+
+  notasAtuais.forEach((url,index)=>{
+
+    box.innerHTML += `
+      <div class="galeria-item">
+        <img src="${url}">
+        <button
+          onclick="removerNotaAtual(${index})">
+          ×
+        </button>
+      </div>
+    `;
+  });
+
+}
+
+function removerNotaAtual(index){
+
+  notasAtuais.splice(index,1);
+
+  atualizarPreviewNotas();
+
 }
 </script>
 
