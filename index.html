@@ -336,7 +336,7 @@ function atualizarPreviewFotos(){
     const src = item.tipo === "url" ? item.valor : URL.createObjectURL(item.valor);
     galeria.innerHTML += `
       <div class="galeria-item">
-        `<img src="${src}">`
+        <img src="${src}">
         <button onclick="removerFoto(${index})">×</button>
       </div>
     `;
