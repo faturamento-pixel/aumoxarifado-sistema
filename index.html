@@ -246,8 +246,8 @@ let fotosAtuais = [];
 
 function miniatura(url){
   return url
-    ? <img class="thumb" src="${url}">
-    : <div class="sem-foto">+</div>;
+    ? `<img class="thumb" src="${url}">`
+    : `<div class="sem-foto">+</div>`;
 }
 
 function abrirNota(url){
