@@ -123,7 +123,7 @@ th{background:#5a4fa3;color:white}
   <input id="mov-lote" placeholder="Lote interno">
 
   <label>Foto da nota:</label>
-  <input type="file" id="mov-nota-file" accept="image/*" capture="environment">
+  <input type="file" id="mov-nota-file" accept="image/*" multiple capture="environment">
 
   <button onclick="registrarMovimento()">Registrar</button>
   <button onclick="limparMovimento()">Novo</button>
@@ -351,23 +351,36 @@ async function uploadNota(file){
 }
 
 async function registrarMovimento(){
-  let notaUrl=document.getElementById("mov-nota-url").value;
-  const notaFile=document.getElementById("mov-nota-file").files[0];
+  let notasAtuais = [];
 
-  if(notaFile){
-    notaUrl=await uploadNota(notaFile);
+  const notaSalva = document.getElementById("mov-nota-url").value;
+
+  if(notaSalva){
+    try{
+      notasAtuais = JSON.parse(notaSalva);
+    }catch(e){
+      notasAtuais = [notaSalva];
+    }
   }
 
-  const dados={
-    produto_id:Number(document.getElementById("mov-produto-id").value),
-    codigo:document.getElementById("mov-codigo").value.trim(),
-    produto:document.getElementById("mov-produto").value.trim(),
-    foto_capa:document.getElementById("mov-foto").value,
-    tipo:document.getElementById("mov-tipo").value,
-    quantidade:Number(document.getElementById("mov-quantidade").value || 0),
-    data_movimento:document.getElementById("mov-data").value,
-    lote_interno:document.getElementById("mov-lote").value.trim(),
-    nota_url:notaUrl
+  const arquivos = Array.from(document.getElementById("mov-nota-file").files || []);
+
+  for(const arquivo of arquivos){
+    const url = await uploadNota(arquivo);
+    notasAtuais.push(url);
+  }
+
+  const dados = {
+    produto_id: Number(document.getElementById("mov-produto-id").value),
+    codigo: document.getElementById("mov-codigo").value.trim(),
+    produto: document.getElementById("mov-produto").value.trim(),
+    foto_capa: document.getElementById("mov-foto").value,
+    tipo: document.getElementById("mov-tipo").value,
+    quantidade: Number(document.getElementById("mov-quantidade").value || 0),
+    data_movimento: document.getElementById("mov-data").value,
+    lote_interno: document.getElementById("mov-lote").value.trim(),
+    nota_url: notasAtuais[0] || "",
+    nota_urls: JSON.stringify(notasAtuais)
   };
 
   if(!dados.produto_id || !dados.codigo || !dados.quantidade || !dados.data_movimento){
@@ -375,13 +388,13 @@ async function registrarMovimento(){
     return;
   }
 
-  const id=document.getElementById("mov-id").value;
+  const id = document.getElementById("mov-id").value;
   let error;
 
   if(id){
-    ({error}=await supa.from("movimentos").update(dados).eq("id",id));
+    ({ error } = await supa.from("movimentos").update(dados).eq("id", id));
   }else{
-    ({error}=await supa.from("movimentos").insert([dados]));
+    ({ error } = await supa.from("movimentos").insert([dados]));
   }
 
   if(error){
@@ -479,7 +492,7 @@ async function editarMovimento(id){
   irPara("registrar");
 
   document.getElementById("mov-id").value=data.id;
-  document.getElementById("mov-nota-url").value=data.nota_url || "";
+  document.getElementById("mov-nota-url").value = data.nota_urls || data.nota_url || "";
   document.getElementById("mov-tipo").value=data.tipo;
   document.getElementById("mov-codigo").value=data.codigo;
   document.getElementById("mov-produto").value=data.produto;
