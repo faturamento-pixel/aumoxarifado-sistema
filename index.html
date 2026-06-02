@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Mercadorias</title>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+body{background:#f5f2fb;display:flex;min-height:100vh;color:#4d4694}
+.sidebar{width:250px;background:white;padding:25px;box-shadow:0 0 15px rgba(0,0,0,.08);display:none;flex-direction:column;justify-content:space-between}
+.sidebar h2{font-size:32px;font-style:italic;font-weight:300;color:#5a4fa3;margin-bottom:10px}
+.sidebar p{background:#ede9fb;padding:12px;border-radius:15px;margin-bottom:15px;font-size:14px}
+.sidebar button{width:100%;margin-top:10px;background:#ede9fb;color:#4d4694;border:none;padding:14px;border-radius:15px;cursor:pointer;font-weight:bold}
+.sidebar button:hover{background:#5a4fa3;color:white}
+.main{flex:1;padding:30px;overflow:auto}
+.card{background:white;padding:25px;border-radius:25px;box-shadow:0 0 15px rgba(0,0,0,.05);margin-bottom:25px}
+.card h2,.card h3{margin-bottom:15px;color:#5a4fa3}
+input,select{width:100%;padding:12px;margin-top:10px;border:none;border-radius:12px;background:#f5f2fb;outline:none}
+button{margin-top:10px;padding:12px 18px;cursor:pointer;border:none;border-radius:12px;background:#5a4fa3;color:white;font-weight:bold}
+.hidden{display:none!important}
+.table-wrap{width:100%;overflow-x:auto}
+table{width:100%;margin-top:20px;border-collapse:collapse;min-width:850px}
+th,td{border-bottom:1px solid #eee;padding:12px;text-align:left;vertical-align:middle}
+th{background:#5a4fa3;color:white}
+.login-container{position:fixed;inset:0;background:#f5f2fb;display:flex;justify-content:center;align-items:center;padding:20px;z-index:999}
+.login-box{background:white;padding:40px;border-radius:30px;width:350px;max-width:100%;box-shadow:0 0 20px rgba(0,0,0,.08)}
+.login-box h1{text-align:center;font-size:34px;font-style:italic;font-weight:300;color:#5a4fa3}
+.login-box p{text-align:center;letter-spacing:3px;color:#9c92d9;margin-bottom:25px;font-size:12px}
+.login-box button{width:100%;padding:15px;border-radius:15px}
+.foto-box{width:120px;height:120px;border-radius:22px;background:#f5f2fb;border:2px dashed #b8afe6;display:flex;align-items:center;justify-content:center;color:#5a4fa3;font-size:45px;cursor:pointer;overflow:hidden;margin-bottom:15px}
+.foto-box img{width:100%;height:100%;object-fit:cover}
+.foto-area{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.thumb{width:55px;height:55px;border-radius:12px;object-fit:cover;background:#f5f2fb}
+.sem-foto{width:55px;height:55px;border-radius:12px;background:#f5f2fb;color:#5a4fa3;display:flex;align-items:center;justify-content:center;font-size:25px}
+.galeria-preview,.carrossel{display:flex;gap:10px;margin-top:15px;overflow-x:auto}
+.galeria-item{width:86px;min-width:86px;height:86px;border-radius:16px;overflow:hidden;position:relative;background:#f5f2fb;border:1px solid #ede9fb}
+.galeria-item img{width:100%;height:100%;object-fit:cover}
+.galeria-item button{position:absolute;top:2px;right:2px;width:24px;height:24px;padding:0;border-radius:50%;background:#c0392b;margin:0}
+.alerta{background:#fff1f1;color:#c0392b;font-weight:bold}
+.ok{background:#edfdf3;color:#27ae60;font-weight:bold}
+@media(max-width:768px){body{display:block}.sidebar{width:100%;padding:15px}.main{padding:15px}.card{padding:18px;border-radius:20px}}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar" id="menu">
+  <div>
+    <h2>Mercadorias</h2>
+    <p id="user-info"></p>
+    <hr style="margin:15px 0;border:none;border-top:1px solid #eee;">
+    <button onclick="irPara('pesquisar')">Pesquisar</button>
+    <button onclick="irPara('registrar')">Registrar</button>
+    <button onclick="irPara('cadastro')">Cadastro</button>
+    <button onclick="irPara('estoque')">Estoque</button>
+    <button id="btn-usuarios" onclick="irPara('usuarios')" style="display:none;">Usuários</button>
+  </div>
+  <button onclick="logout()">Sair</button>
+</div>
+
+<div class="main">
+
+<div id="login" class="login-container">
+  <div class="login-box">
+    <h1>Sofisticatto</h1>
+    <p>CONTROLE DE MERCADORIAS</p>
+    <input id="login-username" placeholder="Usuário">
+    <input id="login-password" type="password" placeholder="Senha">
+    <button onclick="fazerLogin()">Entrar</button>
+  </div>
+</div>
+
+<div id="pesquisar" class="card hidden">
+  <h2>Pesquisar Movimentações</h2>
+
+  <input id="pesq-codigo" placeholder="Código">
+  <input id="pesq-lote" placeholder="Lote interno">
+  <label>Data de:</label>
+  <input id="pesq-data-inicio" type="date">
+  <label>Até:</label>
+  <input id="pesq-data-fim" type="date">
+
+  <button onclick="pesquisarMovimentos()">Pesquisar</button>
+  <button onclick="limparPesquisa()">Limpar</button>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Foto</th>
+          <th>Tipo</th>
+          <th>Código</th>
+          <th>Produto</th>
+          <th>Quantidade</th>
+          <th>Data</th>
+          <th>Lote interno</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-pesquisa"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="registrar" class="card hidden">
+  <h2>Registrar Entrada/Saída</h2>
+
+  <input id="mov-id" type="hidden">
+
+  <select id="mov-tipo">
+    <option value="entrada">Entrada</option>
+    <option value="saida">Saída</option>
+  </select>
+
+  <div class="foto-area">
+    <div class="foto-box" id="mov-preview">+</div>
+    <div>Digite o código para puxar o produto e a foto automaticamente.</div>
+  </div>
+
+  <input id="mov-codigo" placeholder="Código" onblur="buscarProdutoParaMovimento()">
+  <input id="mov-produto" placeholder="Produto" readonly>
+  <input id="mov-produto-id" type="hidden">
+  <input id="mov-foto" type="hidden">
+  <input id="mov-quantidade" type="number" step="0.01" placeholder="Quantidade">
+  <input id="mov-data" type="date">
+  <input id="mov-lote" placeholder="Lote interno">
+
+  <button onclick="registrarMovimento()">Registrar</button>
+  <button onclick="limparMovimento()">Novo</button>
+</div>
+
+<div id="cadastro" class="card hidden">
+  <h2>Cadastro de Produto</h2>
+
+  <input id="produto-id" type="hidden">
+
+  <div class="foto-area">
+    <div class="foto-box" onclick="document.getElementById('input-fotos').click()" id="preview-foto">+</div>
+    <div>Clique no quadro para escolher capa e fotos adicionais. A primeira imagem será a capa.</div>
+  </div>
+
+  <input type="file" id="input-fotos" accept="image/*" multiple class="hidden" onchange="selecionarFotos(event)">
+  <div id="galeria-preview" class="galeria-preview"></div>
+
+  <input id="cad-codigo" placeholder="Código">
+  <input id="cad-produto" placeholder="Produto">
+  <input id="cad-estoque-minimo" type="number" step="0.01" placeholder="Estoque mínimo para alerta">
+
+  <button onclick="salvarProduto()">Salvar</button>
+  <button onclick="limparProduto()">Novo</button>
+
+  <h3>Lista de Produtos</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Foto</th>
+          <th>Código</th>
+          <th>Produto</th>
+          <th>Estoque mínimo</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="lista-produtos"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="estoque" class="card hidden">
+  <h2>Controle de Estoque</h2>
+  <button onclick="carregarEstoque()">Atualizar Estoque</button>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Foto</th>
+          <th>Código</th>
+          <th>Produto</th>
+          <th>Entradas</th>
+          <th>Saídas</th>
+          <th>Estoque Atual</th>
+          <th>Estoque Mínimo</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="lista-estoque"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="usuarios" class="card hidden">
+  <h2>Usuários</h2>
+
+  <input id="usuario-id" type="hidden">
+  <input id="novo-user" placeholder="Usuário">
+  <input id="nova-senha" placeholder="Senha">
+
+  <select id="role">
+    <option value="user">Usuário</option>
+    <option value="admin">Admin</option>
+  </select>
+
+  <button onclick="salvarUsuario()">Salvar</button>
+  <button onclick="limparUsuario()">Novo</button>
+
+  <h3>Lista de Usuários</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Usuário</th>
+          <th>Tipo</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="lista-usuarios"></tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+
+<script>
+const supa = supabase.createClient(
+  "https://zswglybjydhfnhmbdpmh.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYXNlIiwicmVmIjoienN3Z2x5Ymp5ZGhmbmhtYmRwbWgiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc4MDQwMDk0OCwiZXhwIjoyMDk1OTc2OTQ4fQ.QLG7-d0imxWEUObnl67zW9p5h3k2FPuZlfaaWRpN7vg"
+);
+
+let usuarioLogado = null;
+let fotosSelecionadas = [];
+let fotosAtuais = [];
+
+function irPara(secao){
+  if(!usuarioLogado) return;
+
+  ["pesquisar","registrar","cadastro","estoque","usuarios"].forEach(s=>{
+    document.getElementById(s).classList.add("hidden");
+  });
+
+  document.getElementById(secao).classList.remove("hidden");
+
+  if(secao === "cadastro") carregarProdutos();
+  if(secao === "estoque") carregarEstoque();
+  if(secao === "usuarios") carregarUsuarios();
+}
+
+async function fazerLogin(){
+  const user = document.getElementById("login-username").value.trim();
+  const pass = document.getElementById("login-password").value.trim();
+
+  const { data, error } = await supa
+    .from("usuarios")
+    .select("*")
+    .eq("username", user)
+    .eq("senha", pass)
+    .maybeSingle();
+
+  if(error || !data){
+    alert("Login inválido");
+    return;
+  }
+
+  usuarioLogado = data;
+
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("menu").style.display = "flex";
+  document.getElementById("user-info").textContent = "Logado: " + data.username;
+
+  if(data.role === "admin"){
+    document.getElementById("btn-usuarios").style.display = "block";
+  }
+
+  irPara("pesquisar");
+}
+
+function logout(){
+  location.reload();
+}
+
+function fotosArray(valor, capa){
+  let lista = [];
+
+  if(typeof valor === "string" && valor.trim()){
+    try{
+      lista = JSON.parse(valor);
+    }catch(e){
+      lista = [valor];
+    }
+  }
+
+  if(Array.isArray(valor)) lista = valor;
+
+  if(capa && !lista.includes(capa)){
+    lista.unshift(capa);
+  }
+
+  return lista.filter(Boolean);
+}
+
+function fotosBanco(lista){
+  return JSON.stringify(lista.filter(Boolean));
+}
+
+function miniatura(url){
+  return url ? <img class="thumb" src="${url}"> : <div class="sem-foto">+</div>;
+}
+
+function selecionarFotos(event){
+  fotosSelecionadas = fotosSelecionadas.concat(Array.from(event.target.files || []));
+  atualizarPreviewFotos();
+}
+
+function atualizarPreviewFotos(){
+  const preview = document.getElementById("preview-foto");
+  const galeria = document.getElementById("galeria-preview");
+
+  const todas = fotosAtuais.map(x=>({tipo:"url",valor:x}))
+    .concat(fotosSelecionadas.map(x=>({tipo:"file",valor:x})));
+
+  galeria.innerHTML = "";
+
+  if(todas.length === 0){
+    preview.innerHTML = "+";
+    return;
+  }
+
+  const primeira = todas[0];
+  const srcPrincipal = primeira.tipo === "url" ? primeira.valor : URL.createObjectURL(primeira.valor);
+  preview.innerHTML = <img src="${srcPrincipal}">;
+
+  todas.forEach((item,index)=>{
+    const src = item.tipo === "url" ? item.valor : URL.createObjectURL(item.valor);
+    galeria.innerHTML += `
+      <div class="galeria-item">
+        <img src="${src}">
+        <button onclick="removerFoto(${index})">×</button>
+      </div>
+    `;
+  });
+}
+
+function removerFoto(index){
+  if(index < fotosAtuais.length){
+    fotosAtuais.splice(index,1);
+  }else{
+    fotosSelecionadas.splice(index - fotosAtuais.length,1);
+  }
+  atualizarPreviewFotos();
+}
+
+async function uploadFoto(file){
+  const ext = file.name.split(".").pop();
+  const nome = "produto_" + Date.now() + "_" + Math.random().toString(36).substring(2) + "." + ext;
+
+  const { error } = await supa.storage
+    .from("produtos")
+    .upload(nome, file, { cacheControl:"3600", upsert:true });
+
+  if(error) throw error;
+
+  const { data } = supa.storage.from("produtos").getPublicUrl(nome);
+  return data.publicUrl;
+}
+
+async function enviarFotos(){
+  const novas = [];
+
+  for(const foto of fotosSelecionadas){
+    novas.push(await uploadFoto(foto));
+  }
+
+  return fotosAtuais.concat(novas);
+}
+
+async function salvarProduto(){
+  const id = document.getElementById("produto-id").value;
+
+  let todas = [];
+
+  try{
+    todas = await enviarFotos();
+  }catch(e){
+    console.log(e);
+    alert("Erro ao enviar foto. Verifique se criou o bucket produtos como Public.");
+    return;
+  }
+
+  const dados = {
+    codigo: document.getElementById("cad-codigo").value.trim(),
+    produto: document.getElementById("cad-produto").value.trim(),
+    estoque_minimo: Number(document.getElementById("cad-estoque-minimo").value || 0),
+    foto_capa: todas[0] || "",
+    fotos: fotosBanco(todas)
+  };
+
+  let error;
+
+  if(id){
+    ({ error } = await supa.from("produtos").update(dados).eq("id", id));
+  }else{
+    ({ error } = await supa.from("produtos").insert([dados]));
+  }
+
+  if(error){
+    console.log(error);
+    alert("Erro ao salvar produto");
+    return;
+  }
+
+  alert("Produto salvo!");
+  limparProduto();
+  carregarProdutos();
+}
+
+async function carregarProdutos(){
+  const { data, error } = await supa
+    .from("produtos")
+    .select("*")
+    .order("id", { ascending:false });
+
+  if(error){
+    console.log(error);
+    return;
+  }
+
+  const lista = document.getElementById("lista-produtos");
+  lista.innerHTML = "";
+
+  data.forEach(p=>{
+    lista.innerHTML += `
+      <tr>
+        <td>${miniatura(p.foto_capa)}</td>
+        <td>${p.codigo}</td>
+        <td>${p.produto}</td>
+        <td>${p.estoque_minimo || 0}</td>
+        <td>
+          <button onclick="editarProduto(${p.id})">Editar</button>
+          <button onclick="excluirProduto(${p.id})" style="background:#c0392b;">Excluir</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function editarProduto(id){
+  const { data } = await supa.from("produtos").select("*").eq("id", id).maybeSingle();
+
+  document.getElementById("produto-id").value = data.id;
+  document.getElementById("cad-codigo").value = data.codigo;
+  document.getElementById("cad-produto").value = data.produto;
+  document.getElementById("cad-estoque-minimo").value = data.estoque_minimo || 0;
+
+  fotosAtuais = fotosArray(data.fotos, data.foto_capa);
+  fotosSelecionadas = [];
+  atualizarPreviewFotos();
+}
+
+async function excluirProduto(id){
+  if(!confirm("Excluir produto?")) return;
+
+  const { error } = await supa.from("produtos").delete().eq("id", id);
+
+  if(error){
+    alert("Erro ao excluir produto");
+    console.log(error);
+    return;
+  }
+
+  carregarProdutos();
+}
+
+function limparProduto(){
+  document.getElementById("produto-id").value = "";
+  document.getElementById("cad-codigo").value = "";
+  document.getElementById("cad-produto").value = "";
+  document.getElementById("cad-estoque-minimo").value = "";
+  document.getElementById("input-fotos").value = "";
+
+  fotosSelecionadas = [];
+  fotosAtuais = [];
+
+  document.getElementById("preview-foto").innerHTML = "+";
+  document.getElementById("galeria-preview").innerHTML = "";
+}
+
+async function buscarProdutoParaMovimento(){
+  const codigo = document.getElementById("mov-codigo").value.trim();
+  if(!codigo) return;
+
+  const { data, error } = await supa
+    .from("produtos")
+    .select("*")
+    .eq("codigo", codigo)
+    .maybeSingle();
+
+  if(error || !data){
+    alert("Produto não encontrado no cadastro");
+    document.getElementById("mov-produto").value = "";
+    document.getElementById("mov-produto-id").value = "";
+    document.getElementById("mov-foto").value = "";
+    document.getElementById("mov-preview").innerHTML = "+";
+    return;
+  }
+
+  document.getElementById("mov-produto").value = data.produto;
+  document.getElementById("mov-produto-id").value = data.id;
+  document.getElementById("mov-foto").value = data.foto_capa || "";
+  document.getElementById("mov-preview").innerHTML = data.foto_capa ? <img src="${data.foto_capa}"> : "+";
+}
+
+async function registrarMovimento(){
+  const id = document.getElementById("mov-id").value;
+
+  const dados = {
+    produto_id: Number(document.getElementById("mov-produto-id").value),
+    codigo: document.getElementById("mov-codigo").value.trim(),
+    produto: document.getElementById("mov-produto").value.trim(),
+    foto_capa: document.getElementById("mov-foto").value,
+    tipo: document.getElementById("mov-tipo").value,
+    quantidade: Number(document.getElementById("mov-quantidade").value || 0),
+    data_movimento: document.getElementById("mov-data").value,
+    lote_interno: document.getElementById("mov-lote").value.trim()
+  };
+
+  if(!dados.produto_id || !dados.codigo || !dados.produto || !dados.quantidade || !dados.data_movimento){
+    alert("Preencha código, quantidade e data.");
+    return;
+  }
+
+  let error;
+
+  if(id){
+    ({ error } = await supa.from("movimentos").update(dados).eq("id", id));
+  }else{
+    ({ error } = await supa.from("movimentos").insert([dados]));
+  }
+
+  if(error){
+    console.log(error);
+    alert("Erro ao registrar");
+    return;
+  }
+
+  alert("Registrado com sucesso!");
+  limparMovimento();
+}
+
+function limparMovimento(){
+  document.getElementById("mov-id").value = "";
+  document.getElementById("mov-tipo").value = "entrada";
+  document.getElementById("mov-preview").innerHTML = "+";
+  document.getElementById("mov-codigo").value = "";
+  document.getElementById("mov-produto").value = "";
+  document.getElementById("mov-produto-id").value = "";
+  document.getElementById("mov-foto").value = "";
+  document.getElementById("mov-quantidade").value = "";
+  document.getElementById("mov-data").value = "";
+  document.getElementById("mov-lote").value = "";
+}
+
+async function pesquisarMovimentos(){
+  const codigo = document.getElementById("pesq-codigo").value.trim();
+  const lote = document.getElementById("pesq-lote").value.trim();
+  const dataInicio = document.getElementById("pesq-data-inicio").value;
+  const dataFim = document.getElementById("pesq-data-fim").value;
+
+  let query = supa
+    .from("movimentos")
+    .select("*")
+    .order("data_movimento", { ascending:false });
+
+  if(codigo) query = query.eq("codigo", codigo);
+  if(lote) query = query.eq("lote_interno", lote);
+  if(dataInicio) query = query.gte("data_movimento", dataInicio);
+  if(dataFim) query = query.lte("data_movimento", dataFim);
+
+  const { data, error } = await query;
+
+  if(error){
+    console.log(error);
+    alert("Erro ao pesquisar");
+    return;
+  }
+
+  const tabela = document.getElementById("tabela-pesquisa");
+  tabela.innerHTML = "";
+
+  if(!data || data.length === 0){
+    tabela.innerHTML = "<tr><td colspan='8'>Nenhum resultado encontrado</td></tr>";
+    return;
+  }
+
+  data.forEach(m=>{
+    tabela.innerHTML += `
+      <tr>
+        <td>${miniatura(m.foto_capa)}</td>
+        <td>${m.tipo}</td>
+        <td>${m.codigo}</td>
+        <td>${m.produto}</td>
+        <td>${m.quantidade}</td>
+        <td>${m.data_movimento}</td>
+        <td>${m.lote_interno || ""}</td>
+        <td>
+          <button onclick="editarMovimento(${m.id})">Editar</button>
+          <button onclick="excluirMovimento(${m.id})" style="background:#c0392b;">Excluir</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function editarMovimento(id){
+  const { data } = await supa.from("movimentos").select("*").eq("id", id).maybeSingle();
+
+  irPara("registrar");
+
+  document.getElementById("mov-id").value = data.id;
+  document.getElementById("mov-tipo").value = data.tipo;
+  document.getElementById("mov-codigo").value = data.codigo;
+  document.getElementById("mov-produto").value = data.produto;
+  document.getElementById("mov-produto-id").value = data.produto_id;
+  document.getElementById("mov-foto").value = data.foto_capa || "";
+  document.getElementById("mov-quantidade").value = data.quantidade;
+  document.getElementById("mov-data").value = data.data_movimento;
+  document.getElementById("mov-lote").value = data.lote_interno || "";
+  document.getElementById("mov-preview").innerHTML = data.foto_capa ? <img src="${data.foto_capa}"> : "+";
+}
+
+async function excluirMovimento(id){
+  if(!confirm("Excluir movimentação?")) return;
+
+  const { error } = await supa.from("movimentos").delete().eq("id", id);
+
+  if(error){
+    console.log(error);
+    alert("Erro ao excluir");
+    return;
+  }
+
+  pesquisarMovimentos();
+}
+
+function limparPesquisa(){
+  document.getElementById("pesq-codigo").value = "";
+  document.getElementById("pesq-lote").value = "";
+  document.getElementById("pesq-data-inicio").value = "";
+  document.getElementById("pesq-data-fim").value = "";
+  document.getElementById("tabela-pesquisa").innerHTML = "";
+}
+
+async function carregarEstoque(){
+  const { data: produtos } = await supa.from("produtos").select("*").order("produto");
+  const { data: movimentos } = await supa.from("movimentos").select("*");
+
+  const tabela = document.getElementById("lista-estoque");
+  tabela.innerHTML = "";
+
+  produtos.forEach(p=>{
+    const movs = movimentos.filter(m => Number(m.produto_id) === Number(p.id));
+
+    const entradas = movs
+      .filter(m => m.tipo === "entrada")
+      .reduce((s,m)=>s + Number(m.quantidade || 0),0);
+
+    const saidas = movs
+      .filter(m => m.tipo === "saida")
+      .reduce((s,m)=>s + Number(m.quantidade || 0),0);
+
+    const atual = entradas - saidas;
+    const minimo = Number(p.estoque_minimo || 0);
+    const baixo = atual <= minimo;
+
+    tabela.innerHTML += `
+      <tr class="${baixo ? "alerta" : "ok"}">
+        <td>${miniatura(p.foto_capa)}</td>
+        <td>${p.codigo}</td>
+        <td>${p.produto}</td>
+        <td>${entradas}</td>
+        <td>${saidas}</td>
+        <td>${atual}</td>
+        <td>${minimo}</td>
+        <td>${baixo ? "Estoque baixo" : "OK"}</td>
+      </tr>
+    `;
+  });
+}
+
+async function carregarUsuarios(){
+  const { data } = await supa.from("usuarios").select("*").order("id", { ascending:false });
+
+  const lista = document.getElementById("lista-usuarios");
+  lista.innerHTML = "";
+
+  data.forEach(u=>{
+    lista.innerHTML += `
+      <tr>
+        <td>${u.username}</td>
+        <td>${u.role}</td>
+        <td>
+          <button onclick="editarUsuario(${u.id})">Editar</button>
+          <button onclick="excluirUsuario(${u.id})" style="background:#c0392b;">Excluir</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function salvarUsuario(){
+  const id = document.getElementById("usuario-id").value;
+
+  const dados = {
+    username: document.getElementById("novo-user").value.trim(),
+    senha: document.getElementById("nova-senha").value.trim(),
+    role: document.getElementById("role").value
+  };
+
+  let error;
+
+  if(id){
+    ({ error } = await supa.from("usuarios").update(dados).eq("id", id));
+  }else{
+    ({ error } = await supa.from("usuarios").insert([dados]));
+  }
+
+  if(error){
+    console.log(error);
+    alert("Erro ao salvar usuário");
+    return;
+  }
+
+  alert("Usuário salvo!");
+  limparUsuario();
+  carregarUsuarios();
+}
+
+async function editarUsuario(id){
+  const { data } = await supa.from("usuarios").select("*").eq("id", id).maybeSingle();
+
+  document.getElementById("usuario-id").value = data.id;
+  document.getElementById("novo-user").value = data.username;
+  document.getElementById("nova-senha").value = data.senha;
+  document.getElementById("role").value = data.role;
+}
+
+async function excluirUsuario(id){
+  if(!confirm("Excluir usuário?")) return;
+
+  const { error } = await supa.from("usuarios").delete().eq("id", id);
+
+  if(error){
+    alert("Erro ao excluir usuário");
+    console.log(error);
+    return;
+  }
+
+  carregarUsuarios();
+}
+
+function limparUsuario(){
+  document.getElementById("usuario-id").value = "";
+  document.getElementById("novo-user").value = "";
+  document.getElementById("nova-senha").value = "";
+  document.getElementById("role").value = "user";
+}
+</script>
+
+</body>
+</html>
