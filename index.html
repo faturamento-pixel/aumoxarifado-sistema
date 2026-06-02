@@ -347,7 +347,7 @@ async function uploadNota(file){
   document.getElementById("mov-produto-id").value=data.id;
   document.getElementById("mov-produto").value=data.produto;
   document.getElementById("mov-foto").value=data.foto_capa || "";
-  document.getElementById("mov-preview").innerHTML=data.foto_capa ? <img src="${data.foto_capa}"> : "+";
+  document.getElementById("mov-preview").innerHTML=data.foto_capa ? `<img src="${data.foto_capa}">` : "+";
 }
 
 async function registrarMovimento(){
@@ -488,7 +488,7 @@ async function editarMovimento(id){
   document.getElementById("mov-quantidade").value=data.quantidade;
   document.getElementById("mov-data").value=data.data_movimento;
   document.getElementById("mov-lote").value=data.lote_interno || "";
-  document.getElementById("mov-preview").innerHTML=data.foto_capa ? <img src="${data.foto_capa}"> : "+";
+  document.getElementById("mov-preview").innerHTML=data.foto_capa ? `<img src="${data.foto_capa}">` : "+";
 }
 
 async function excluirMovimento(id){
@@ -546,7 +546,7 @@ function atualizarPreviewFotos(){
 
   const primeira=todas[0];
   const srcPrincipal=primeira.tipo==="url" ? primeira.valor : URL.createObjectURL(primeira.valor);
-  preview.innerHTML=<img src="${srcPrincipal}">;
+  preview.innerHTML=`<img src="${srcPrincipal}">`;
 
   todas.forEach((item,index)=>{
     const src=item.tipo==="url" ? item.valor : URL.createObjectURL(item.valor);
