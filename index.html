@@ -129,9 +129,9 @@ th{background:#5a4fa3;color:white}
   <button onclick="registrarMovimento()">Registrar</button>
   <button onclick="limparMovimento()">Novo</button>
 </div>
+
 <div id="cadastro" class="card hidden">
   <h2>Cadastro de Produto</h2>
-
   <input id="produto-id" type="hidden">
 
   <div class="foto-area">
@@ -139,8 +139,7 @@ th{background:#5a4fa3;color:white}
     <div>Clique para escolher a capa e fotos adicionais.</div>
   </div>
 
-  <input  type="file"  id="input-fotos"  accept="image/*"  capture="environment"  multiple  class="hidden"  onchange="selecionarFotos(event)"
->
+  <input type="file" id="input-fotos" accept="image/*" capture="environment" multiple class="hidden" onchange="selecionarFotos(event)">
   <div id="galeria-preview" class="galeria-preview"></div>
 
   <input id="cad-codigo" placeholder="Código">
@@ -151,16 +150,11 @@ th{background:#5a4fa3;color:white}
   <button onclick="limparProduto()">Novo</button>
 
   <h3>Lista de Produtos</h3>
-
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>Foto</th>
-          <th>Código</th>
-          <th>Produto</th>
-          <th>Estoque mínimo</th>
-          <th>Ações</th>
+          <th>Foto</th><th>Código</th><th>Produto</th><th>Estoque mínimo</th><th>Ações</th>
         </tr>
       </thead>
       <tbody id="lista-produtos"></tbody>
@@ -170,21 +164,14 @@ th{background:#5a4fa3;color:white}
 
 <div id="estoque" class="card hidden">
   <h2>Controle de Estoque</h2>
-
   <button onclick="carregarEstoque()">Atualizar Estoque</button>
 
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>Foto</th>
-          <th>Código</th>
-          <th>Produto</th>
-          <th>Entradas</th>
-          <th>Saídas</th>
-          <th>Atual</th>
-          <th>Mínimo</th>
-          <th>Status</th>
+          <th>Foto</th><th>Código</th><th>Produto</th><th>Entradas</th><th>Saídas</th>
+          <th>Atual</th><th>Mínimo</th><th>Status</th>
         </tr>
       </thead>
       <tbody id="lista-estoque"></tbody>
@@ -194,7 +181,6 @@ th{background:#5a4fa3;color:white}
 
 <div id="usuarios" class="card hidden">
   <h2>Usuários</h2>
-
   <input id="usuario-id" type="hidden">
   <input id="novo-user" placeholder="Usuário">
   <input id="nova-senha" placeholder="Senha">
@@ -208,14 +194,11 @@ th{background:#5a4fa3;color:white}
   <button onclick="limparUsuario()">Novo</button>
 
   <h3>Lista de Usuários</h3>
-
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>Usuário</th>
-          <th>Tipo</th>
-          <th>Ações</th>
+          <th>Usuário</th><th>Tipo</th><th>Ações</th>
         </tr>
       </thead>
       <tbody id="lista-usuarios"></tbody>
@@ -239,7 +222,6 @@ th{background:#5a4fa3;color:white}
 </div>
 
 <script>
-
 const supa = supabase.createClient(
   "https://zswglybjydhfnhmbdpmh.supabase.co",
   "sb_publishable_auLUo4GUb7XpoSTEp-o0Yg_PLyARAgl"
@@ -249,6 +231,8 @@ let usuarioLogado = null;
 let fotosSelecionadas = [];
 let fotosAtuais = [];
 let notasAtuais = [];
+let notasModal = [];
+let notaAtualIndex = 0;
 
 function miniatura(url){
   return url
@@ -256,13 +240,14 @@ function miniatura(url){
     : `<div class="sem-foto">+</div>`;
 }
 
-let notasModal = [];
-let notaAtualIndex = 0;
-
 function abrirNotas(listaJson, primeiraUrl){
   try{
     notasModal = listaJson ? JSON.parse(listaJson) : [];
   }catch(e){
+    notasModal = primeiraUrl ? [primeiraUrl] : [];
+  }
+
+  if(!Array.isArray(notasModal)){
     notasModal = primeiraUrl ? [primeiraUrl] : [];
   }
 
@@ -282,7 +267,6 @@ function abrirNotas(listaJson, primeiraUrl){
 
 function mostrarNotaAtual(){
   const url = notasModal[notaAtualIndex];
-
   document.getElementById("imagemNota").src = url;
   document.getElementById("downloadNota").href = url;
 }
@@ -304,31 +288,28 @@ function fecharNota(){
 }
 
 function irPara(secao){
-
   if(!usuarioLogado) return;
 
-  ["pesquisar","registrar","cadastro","estoque","usuarios"]
-  .forEach(x=>{
+  ["pesquisar","registrar","cadastro","estoque","usuarios"].forEach(x=>{
     document.getElementById(x).classList.add("hidden");
   });
 
   document.getElementById(secao).classList.remove("hidden");
 
-  if(secao==="cadastro") carregarProdutos();
-  if(secao==="estoque") carregarEstoque();
-  if(secao==="usuarios") carregarUsuarios();
+  if(secao === "cadastro") carregarProdutos();
+  if(secao === "estoque") carregarEstoque();
+  if(secao === "usuarios") carregarUsuarios();
 }
 
 async function fazerLogin(){
+  const user = document.getElementById("login-username").value.trim();
+  const pass = document.getElementById("login-password").value.trim();
 
-  const user=document.getElementById("login-username").value.trim();
-  const pass=document.getElementById("login-password").value.trim();
-
-  const {data,error}=await supa
+  const { data, error } = await supa
     .from("usuarios")
     .select("*")
-    .eq("username",user)
-    .eq("senha",pass)
+    .eq("username", user)
+    .eq("senha", pass)
     .maybeSingle();
 
   if(error || !data){
@@ -336,14 +317,13 @@ async function fazerLogin(){
     return;
   }
 
-  usuarioLogado=data;
-
+  usuarioLogado = data;
   document.getElementById("login").classList.add("hidden");
-  document.getElementById("menu").style.display="flex";
-  document.getElementById("user-info").textContent="Logado: "+data.username;
+  document.getElementById("menu").style.display = "flex";
+  document.getElementById("user-info").textContent = "Logado: " + data.username;
 
-  if(data.role==="admin"){
-    document.getElementById("btn-usuarios").style.display="block";
+  if(data.role === "admin"){
+    document.getElementById("btn-usuarios").style.display = "block";
   }
 
   irPara("pesquisar");
@@ -354,32 +334,27 @@ function logout(){
 }
 
 async function uploadNota(file){
+  const ext = file.name.split(".").pop();
+  const nome = "nota_" + Date.now() + "_" + Math.random().toString(36).substring(2) + "." + ext;
 
-  const ext=file.name.split(".").pop();
-
-  const nome=
-  "nota_"+Date.now()+"_"+Math.random().toString(36).substring(2)+"."+ext;
-
-  const {error}=await supa.storage
-  .from("produtos")
-  .upload(nome,file,{upsert:true});
+  const { error } = await supa.storage
+    .from("produtos")
+    .upload(nome, file, { upsert:true });
 
   if(error) throw error;
 
-  const {data}=supa.storage
-  .from("produtos")
-  .getPublicUrl(nome);
-
+  const { data } = supa.storage.from("produtos").getPublicUrl(nome);
   return data.publicUrl;
 }
-  async function buscarProdutoParaMovimento(){
-  const codigo=document.getElementById("mov-codigo").value.trim();
+
+async function buscarProdutoParaMovimento(){
+  const codigo = document.getElementById("mov-codigo").value.trim();
   if(!codigo) return;
 
-  const {data,error}=await supa
+  const { data, error } = await supa
     .from("produtos")
     .select("*")
-    .eq("codigo",codigo)
+    .eq("codigo", codigo)
     .maybeSingle();
 
   if(error || !data){
@@ -387,37 +362,19 @@ async function uploadNota(file){
     return;
   }
 
-  document.getElementById("mov-produto-id").value=data.id;
-  document.getElementById("mov-produto").value=data.produto;
-  document.getElementById("mov-foto").value=data.foto_capa || "";
-  document.getElementById("mov-preview").innerHTML=data.foto_capa ? `<img src="${data.foto_capa}">` : "+";
+  document.getElementById("mov-produto-id").value = data.id;
+  document.getElementById("mov-produto").value = data.produto;
+  document.getElementById("mov-foto").value = data.foto_capa || "";
+  document.getElementById("mov-preview").innerHTML = data.foto_capa ? `<img src="${data.foto_capa}">` : "+";
 }
 
 async function registrarMovimento(){
-  let notasAtuais = [];
-
-  const notaSalva = document.getElementById("mov-nota-url").value;
-
-  if(notaSalva){
-    try{
-      notasAtuais = JSON.parse(notaSalva);
-    }catch(e){
-      notasAtuais = [notaSalva];
-    }
-  }
-
- let listaNotas = [...notasAtuais];
-
-const arquivos = Array.from(document.getElementById("mov-nota-file").files || []);
-
-for(const arquivo of arquivos){
-  const url = await uploadNota(arquivo);
-  listaNotas.push(url);
-}
+  let listaNotas = [...notasAtuais];
+  const arquivos = Array.from(document.getElementById("mov-nota-file").files || []);
 
   for(const arquivo of arquivos){
     const url = await uploadNota(arquivo);
-    notasAtuais.push(url);
+    listaNotas.push(url);
   }
 
   const dados = {
@@ -454,38 +411,40 @@ for(const arquivo of arquivos){
   }
 
   alert("Registrado com sucesso!");
+  notasAtuais = [];
   limparMovimento();
 }
 
 function limparMovimento(){
-  document.getElementById("mov-id").value="";
-  document.getElementById("mov-nota-url").value="";
-  document.getElementById("mov-nota-file").value="";
-  document.getElementById("mov-tipo").value="entrada";
-  document.getElementById("mov-preview").innerHTML="+";
-  document.getElementById("mov-codigo").value="";
-  document.getElementById("mov-produto").value="";
-  document.getElementById("mov-produto-id").value="";
-  document.getElementById("mov-foto").value="";
-  document.getElementById("mov-quantidade").value="";
-  document.getElementById("mov-data").value="";
-  document.getElementById("mov-lote").value="";
+  document.getElementById("mov-id").value = "";
+  document.getElementById("mov-nota-url").value = "";
+  document.getElementById("mov-nota-file").value = "";
+  document.getElementById("mov-tipo").value = "entrada";
+  document.getElementById("mov-preview").innerHTML = "+";
+  document.getElementById("mov-codigo").value = "";
+  document.getElementById("mov-produto").value = "";
+  document.getElementById("mov-produto-id").value = "";
+  document.getElementById("mov-foto").value = "";
+  document.getElementById("mov-quantidade").value = "";
+  document.getElementById("mov-data").value = "";
+  document.getElementById("mov-lote").value = "";
+  document.getElementById("preview-notas").innerHTML = "";
 }
 
 async function pesquisarMovimentos(){
-  const codigo=document.getElementById("pesq-codigo").value.trim();
-  const lote=document.getElementById("pesq-lote").value.trim();
-  const dataInicio=document.getElementById("pesq-data-inicio").value;
-  const dataFim=document.getElementById("pesq-data-fim").value;
+  const codigo = document.getElementById("pesq-codigo").value.trim();
+  const lote = document.getElementById("pesq-lote").value.trim();
+  const dataInicio = document.getElementById("pesq-data-inicio").value;
+  const dataFim = document.getElementById("pesq-data-fim").value;
 
-  let query=supa.from("movimentos").select("*").order("data_movimento",{ascending:false});
+  let query = supa.from("movimentos").select("*").order("data_movimento", { ascending:false });
 
-  if(codigo) query=query.eq("codigo",codigo);
-  if(lote) query=query.eq("lote_interno",lote);
-  if(dataInicio) query=query.gte("data_movimento",dataInicio);
-  if(dataFim) query=query.lte("data_movimento",dataFim);
+  if(codigo) query = query.eq("codigo", codigo);
+  if(lote) query = query.eq("lote_interno", lote);
+  if(dataInicio) query = query.gte("data_movimento", dataInicio);
+  if(dataFim) query = query.lte("data_movimento", dataFim);
 
-  const {data,error}=await query;
+  const { data, error } = await query;
 
   if(error){
     console.log(error);
@@ -493,25 +452,23 @@ async function pesquisarMovimentos(){
     return;
   }
 
-  const tabela=document.getElementById("tabela-pesquisa");
-  tabela.innerHTML="";
+  const tabela = document.getElementById("tabela-pesquisa");
+  tabela.innerHTML = "";
 
-  if(!data || data.length===0){
-    tabela.innerHTML="<tr><td colspan='9'>Nenhum resultado encontrado</td></tr>";
+  if(!data || data.length === 0){
+    tabela.innerHTML = "<tr><td colspan='9'>Nenhum resultado encontrado</td></tr>";
     return;
   }
 
   data.forEach(m=>{
-    const nota=m.nota_url
-      ? `<button onclick='abrirNotas(${JSON.stringify(JSON.stringify(m.nota_urls || ""))}, ${JSON.stringify(m.nota_url || "")})'>`
-  Ver nota
-</button>
+    const nota = m.nota_url
+      ? `<button onclick='abrirNotas(${JSON.stringify(m.nota_urls || "")}, ${JSON.stringify(m.nota_url || "")})'>Ver nota</button>
          <a href="${m.nota_url}" target="_blank" download>
            <button>Baixar</button>
          </a>`
       : "Sem nota";
 
-    tabela.innerHTML+=`
+    tabela.innerHTML += `
       <tr>
         <td>${miniatura(m.foto_capa)}</td>
         <td>${m.tipo}</td>
@@ -531,48 +488,47 @@ async function pesquisarMovimentos(){
 }
 
 function limparPesquisa(){
-  document.getElementById("pesq-codigo").value="";
-  document.getElementById("pesq-lote").value="";
-  document.getElementById("pesq-data-inicio").value="";
-  document.getElementById("pesq-data-fim").value="";
-  document.getElementById("tabela-pesquisa").innerHTML="";
+  document.getElementById("pesq-codigo").value = "";
+  document.getElementById("pesq-lote").value = "";
+  document.getElementById("pesq-data-inicio").value = "";
+  document.getElementById("pesq-data-fim").value = "";
+  document.getElementById("tabela-pesquisa").innerHTML = "";
 }
 
 async function editarMovimento(id){
-  const {data}=await supa.from("movimentos").select("*").eq("id",id).maybeSingle();
+  const { data } = await supa.from("movimentos").select("*").eq("id", id).maybeSingle();
 
   irPara("registrar");
 
-  document.getElementById("mov-id").value=data.id;
+  document.getElementById("mov-id").value = data.id;
   document.getElementById("mov-nota-url").value = data.nota_urls || data.nota_url || "";
-  document.getElementById("mov-tipo").value=data.tipo;
-  document.getElementById("mov-codigo").value=data.codigo;
-  document.getElementById("mov-produto").value=data.produto;
-  document.getElementById("mov-produto-id").value=data.produto_id;
-  document.getElementById("mov-foto").value=data.foto_capa || "";
-  document.getElementById("mov-quantidade").value=data.quantidade;
-  document.getElementById("mov-data").value=data.data_movimento;
-  document.getElementById("mov-lote").value=data.lote_interno || "";
-  document.getElementById("mov-preview").innerHTML=data.foto_capa ? `<img src="${data.foto_capa}">` : "+";
+  document.getElementById("mov-tipo").value = data.tipo;
+  document.getElementById("mov-codigo").value = data.codigo;
+  document.getElementById("mov-produto").value = data.produto;
+  document.getElementById("mov-produto-id").value = data.produto_id;
+  document.getElementById("mov-foto").value = data.foto_capa || "";
+  document.getElementById("mov-quantidade").value = data.quantidade;
+  document.getElementById("mov-data").value = data.data_movimento;
+  document.getElementById("mov-lote").value = data.lote_interno || "";
+  document.getElementById("mov-preview").innerHTML = data.foto_capa ? `<img src="${data.foto_capa}">` : "+";
+
   try{
-  notasAtuais = data.nota_urls
-    ? JSON.parse(data.nota_urls)
-    : [];
-}catch(e){
-  notasAtuais = [];
-}
+    notasAtuais = data.nota_urls ? JSON.parse(data.nota_urls) : [];
+  }catch(e){
+    notasAtuais = [];
+  }
 
-if(data.nota_url && !notasAtuais.includes(data.nota_url)){
-  notasAtuais.unshift(data.nota_url);
-}
+  if(data.nota_url && !notasAtuais.includes(data.nota_url)){
+    notasAtuais.unshift(data.nota_url);
+  }
 
-atualizarPreviewNotas();
+  atualizarPreviewNotas();
 }
 
 async function excluirMovimento(id){
   if(!confirm("Excluir movimentação?")) return;
 
-  const {error}=await supa.from("movimentos").delete().eq("id",id);
+  const { error } = await supa.from("movimentos").delete().eq("id", id);
 
   if(error){
     console.log(error);
@@ -584,13 +540,13 @@ async function excluirMovimento(id){
 }
 
 function fotosArray(valor,capa){
-  let lista=[];
+  let lista = [];
 
-  if(typeof valor==="string" && valor.trim()){
-    try{lista=JSON.parse(valor)}catch(e){lista=[valor]}
+  if(typeof valor === "string" && valor.trim()){
+    try{ lista = JSON.parse(valor); }catch(e){ lista = [valor]; }
   }
 
-  if(Array.isArray(valor)) lista=valor;
+  if(Array.isArray(valor)) lista = valor;
 
   if(capa && !lista.includes(capa)){
     lista.unshift(capa);
@@ -604,32 +560,32 @@ function fotosBanco(lista){
 }
 
 function selecionarFotos(event){
-  fotosSelecionadas=fotosSelecionadas.concat(Array.from(event.target.files || []));
+  fotosSelecionadas = fotosSelecionadas.concat(Array.from(event.target.files || []));
   atualizarPreviewFotos();
 }
 
 function atualizarPreviewFotos(){
-  const preview=document.getElementById("preview-foto");
-  const galeria=document.getElementById("galeria-preview");
+  const preview = document.getElementById("preview-foto");
+  const galeria = document.getElementById("galeria-preview");
 
-  const todas=fotosAtuais.map(x=>({tipo:"url",valor:x}))
+  const todas = fotosAtuais.map(x=>({tipo:"url",valor:x}))
     .concat(fotosSelecionadas.map(x=>({tipo:"file",valor:x})));
 
-  galeria.innerHTML="";
+  galeria.innerHTML = "";
 
-  if(todas.length===0){
-    preview.innerHTML="+";
+  if(todas.length === 0){
+    preview.innerHTML = "+";
     return;
   }
 
-  const primeira=todas[0];
-  const srcPrincipal=primeira.tipo==="url" ? primeira.valor : URL.createObjectURL(primeira.valor);
-  preview.innerHTML=`<img src="${srcPrincipal}">`;
+  const primeira = todas[0];
+  const srcPrincipal = primeira.tipo === "url" ? primeira.valor : URL.createObjectURL(primeira.valor);
+  preview.innerHTML = `<img src="${srcPrincipal}">`;
 
   todas.forEach((item,index)=>{
-    const src=item.tipo==="url" ? item.valor : URL.createObjectURL(item.valor);
+    const src = item.tipo === "url" ? item.valor : URL.createObjectURL(item.valor);
 
-    galeria.innerHTML+=`
+    galeria.innerHTML += `
       <div class="galeria-item">
         <img src="${src}">
         <button onclick="removerFoto(${index})">×</button>
@@ -649,18 +605,18 @@ function removerFoto(index){
 }
 
 async function uploadFoto(file){
-  const ext=file.name.split(".").pop();
-  const nome="produto_"+Date.now()+"_"+Math.random().toString(36).substring(2)+"."+ext;
+  const ext = file.name.split(".").pop();
+  const nome = "produto_" + Date.now() + "_" + Math.random().toString(36).substring(2) + "." + ext;
 
-  const {error}=await supa.storage.from("produtos").upload(nome,file,{upsert:true});
+  const { error } = await supa.storage.from("produtos").upload(nome, file, { upsert:true });
   if(error) throw error;
 
-  const {data}=supa.storage.from("produtos").getPublicUrl(nome);
+  const { data } = supa.storage.from("produtos").getPublicUrl(nome);
   return data.publicUrl;
 }
 
 async function enviarFotos(){
-  const novas=[];
+  const novas = [];
 
   for(const foto of fotosSelecionadas){
     novas.push(await uploadFoto(foto));
@@ -670,31 +626,31 @@ async function enviarFotos(){
 }
 
 async function salvarProduto(){
-  const id=document.getElementById("produto-id").value;
-  let todas=[];
+  const id = document.getElementById("produto-id").value;
+  let todas = [];
 
   try{
-    todas=await enviarFotos();
+    todas = await enviarFotos();
   }catch(e){
     console.log(e);
     alert("Erro ao enviar foto.");
     return;
   }
 
-  const dados={
-    codigo:document.getElementById("cad-codigo").value.trim(),
-    produto:document.getElementById("cad-produto").value.trim(),
-    estoque_minimo:Number(document.getElementById("cad-estoque-minimo").value || 0),
-    foto_capa:todas[0] || "",
-    fotos:fotosBanco(todas)
+  const dados = {
+    codigo: document.getElementById("cad-codigo").value.trim(),
+    produto: document.getElementById("cad-produto").value.trim(),
+    estoque_minimo: Number(document.getElementById("cad-estoque-minimo").value || 0),
+    foto_capa: todas[0] || "",
+    fotos: fotosBanco(todas)
   };
 
   let error;
 
   if(id){
-    ({error}=await supa.from("produtos").update(dados).eq("id",id));
+    ({ error } = await supa.from("produtos").update(dados).eq("id", id));
   }else{
-    ({error}=await supa.from("produtos").insert([dados]));
+    ({ error } = await supa.from("produtos").insert([dados]));
   }
 
   if(error){
@@ -709,18 +665,18 @@ async function salvarProduto(){
 }
 
 async function carregarProdutos(){
-  const {data,error}=await supa.from("produtos").select("*").order("id",{ascending:false});
+  const { data, error } = await supa.from("produtos").select("*").order("id", { ascending:false });
 
   if(error){
     console.log(error);
     return;
   }
 
-  const lista=document.getElementById("lista-produtos");
-  lista.innerHTML="";
+  const lista = document.getElementById("lista-produtos");
+  lista.innerHTML = "";
 
   data.forEach(p=>{
-    lista.innerHTML+=`
+    lista.innerHTML += `
       <tr>
         <td>${miniatura(p.foto_capa)}</td>
         <td>${p.codigo}</td>
@@ -736,22 +692,22 @@ async function carregarProdutos(){
 }
 
 async function editarProduto(id){
-  const {data}=await supa.from("produtos").select("*").eq("id",id).maybeSingle();
+  const { data } = await supa.from("produtos").select("*").eq("id", id).maybeSingle();
 
-  document.getElementById("produto-id").value=data.id;
-  document.getElementById("cad-codigo").value=data.codigo;
-  document.getElementById("cad-produto").value=data.produto;
-  document.getElementById("cad-estoque-minimo").value=data.estoque_minimo || 0;
+  document.getElementById("produto-id").value = data.id;
+  document.getElementById("cad-codigo").value = data.codigo;
+  document.getElementById("cad-produto").value = data.produto;
+  document.getElementById("cad-estoque-minimo").value = data.estoque_minimo || 0;
 
-  fotosAtuais=fotosArray(data.fotos,data.foto_capa);
-  fotosSelecionadas=[];
+  fotosAtuais = fotosArray(data.fotos, data.foto_capa);
+  fotosSelecionadas = [];
   atualizarPreviewFotos();
 }
 
 async function excluirProduto(id){
   if(!confirm("Excluir produto?")) return;
 
-  const {error}=await supa.from("produtos").delete().eq("id",id);
+  const { error } = await supa.from("produtos").delete().eq("id", id);
 
   if(error){
     console.log(error);
@@ -763,35 +719,35 @@ async function excluirProduto(id){
 }
 
 function limparProduto(){
-  document.getElementById("produto-id").value="";
-  document.getElementById("cad-codigo").value="";
-  document.getElementById("cad-produto").value="";
-  document.getElementById("cad-estoque-minimo").value="";
-  document.getElementById("input-fotos").value="";
-  fotosSelecionadas=[];
-  fotosAtuais=[];
-  document.getElementById("preview-foto").innerHTML="+";
-  document.getElementById("galeria-preview").innerHTML="";
+  document.getElementById("produto-id").value = "";
+  document.getElementById("cad-codigo").value = "";
+  document.getElementById("cad-produto").value = "";
+  document.getElementById("cad-estoque-minimo").value = "";
+  document.getElementById("input-fotos").value = "";
+  fotosSelecionadas = [];
+  fotosAtuais = [];
+  document.getElementById("preview-foto").innerHTML = "+";
+  document.getElementById("galeria-preview").innerHTML = "";
 }
 
 async function carregarEstoque(){
-  const {data:produtos}=await supa.from("produtos").select("*").order("produto");
-  const {data:movimentos}=await supa.from("movimentos").select("*");
+  const { data:produtos } = await supa.from("produtos").select("*").order("produto");
+  const { data:movimentos } = await supa.from("movimentos").select("*");
 
-  const tabela=document.getElementById("lista-estoque");
-  tabela.innerHTML="";
+  const tabela = document.getElementById("lista-estoque");
+  tabela.innerHTML = "";
 
   produtos.forEach(p=>{
-    const movs=movimentos.filter(m=>Number(m.produto_id)===Number(p.id));
+    const movs = (movimentos || []).filter(m=>Number(m.produto_id) === Number(p.id));
 
-    const entradas=movs.filter(m=>m.tipo==="entrada").reduce((s,m)=>s+Number(m.quantidade || 0),0);
-    const saidas=movs.filter(m=>m.tipo==="saida").reduce((s,m)=>s+Number(m.quantidade || 0),0);
+    const entradas = movs.filter(m=>m.tipo === "entrada").reduce((s,m)=>s + Number(m.quantidade || 0),0);
+    const saidas = movs.filter(m=>m.tipo === "saida").reduce((s,m)=>s + Number(m.quantidade || 0),0);
 
-    const atual=entradas-saidas;
-    const minimo=Number(p.estoque_minimo || 0);
-    const baixo=atual <= minimo;
+    const atual = entradas - saidas;
+    const minimo = Number(p.estoque_minimo || 0);
+    const baixo = atual <= minimo;
 
-    tabela.innerHTML+=`
+    tabela.innerHTML += `
       <tr class="${baixo ? "alerta" : "ok"}">
         <td>${miniatura(p.foto_capa)}</td>
         <td>${p.codigo}</td>
@@ -807,12 +763,12 @@ async function carregarEstoque(){
 }
 
 async function carregarUsuarios(){
-  const {data}=await supa.from("usuarios").select("*").order("id",{ascending:false});
-  const lista=document.getElementById("lista-usuarios");
-  lista.innerHTML="";
+  const { data } = await supa.from("usuarios").select("*").order("id", { ascending:false });
+  const lista = document.getElementById("lista-usuarios");
+  lista.innerHTML = "";
 
-  data.forEach(u=>{
-    lista.innerHTML+=`
+  (data || []).forEach(u=>{
+    lista.innerHTML += `
       <tr>
         <td>${u.username}</td>
         <td>${u.role}</td>
@@ -826,20 +782,20 @@ async function carregarUsuarios(){
 }
 
 async function salvarUsuario(){
-  const id=document.getElementById("usuario-id").value;
+  const id = document.getElementById("usuario-id").value;
 
-  const dados={
-    username:document.getElementById("novo-user").value.trim(),
-    senha:document.getElementById("nova-senha").value.trim(),
-    role:document.getElementById("role").value
+  const dados = {
+    username: document.getElementById("novo-user").value.trim(),
+    senha: document.getElementById("nova-senha").value.trim(),
+    role: document.getElementById("role").value
   };
 
   let error;
 
   if(id){
-    ({error}=await supa.from("usuarios").update(dados).eq("id",id));
+    ({ error } = await supa.from("usuarios").update(dados).eq("id", id));
   }else{
-    ({error}=await supa.from("usuarios").insert([dados]));
+    ({ error } = await supa.from("usuarios").insert([dados]));
   }
 
   if(error){
@@ -854,18 +810,18 @@ async function salvarUsuario(){
 }
 
 async function editarUsuario(id){
-  const {data}=await supa.from("usuarios").select("*").eq("id",id).maybeSingle();
+  const { data } = await supa.from("usuarios").select("*").eq("id", id).maybeSingle();
 
-  document.getElementById("usuario-id").value=data.id;
-  document.getElementById("novo-user").value=data.username;
-  document.getElementById("nova-senha").value=data.senha;
-  document.getElementById("role").value=data.role;
+  document.getElementById("usuario-id").value = data.id;
+  document.getElementById("novo-user").value = data.username;
+  document.getElementById("nova-senha").value = data.senha;
+  document.getElementById("role").value = data.role;
 }
 
 async function excluirUsuario(id){
   if(!confirm("Excluir usuário?")) return;
 
-  const {error}=await supa.from("usuarios").delete().eq("id",id);
+  const { error } = await supa.from("usuarios").delete().eq("id", id);
 
   if(error){
     console.log(error);
@@ -877,40 +833,32 @@ async function excluirUsuario(id){
 }
 
 function limparUsuario(){
-  document.getElementById("usuario-id").value="";
-  document.getElementById("novo-user").value="";
-  document.getElementById("nova-senha").value="";
-  document.getElementById("role").value="user";
+  document.getElementById("usuario-id").value = "";
+  document.getElementById("novo-user").value = "";
+  document.getElementById("nova-senha").value = "";
+  document.getElementById("role").value = "user";
 }
-  function atualizarPreviewNotas(){
 
-  const box =
-  document.getElementById("preview-notas");
-
+function atualizarPreviewNotas(){
+  const box = document.getElementById("preview-notas");
   if(!box) return;
 
   box.innerHTML = "";
 
   notasAtuais.forEach((url,index)=>{
-
     box.innerHTML += `
       <div class="galeria-item">
         <img src="${url}">
-        <button
-          onclick="removerNotaAtual(${index})">
-          ×
-        </button>
+        <button onclick="removerNotaAtual(${index})">×</button>
       </div>
     `;
   });
 
+  document.getElementById("mov-nota-url").value = JSON.stringify(notasAtuais);
 }
 
 function removerNotaAtual(index){
   notasAtuais.splice(index, 1);
-
-  document.getElementById("mov-nota-url").value = JSON.stringify(notasAtuais);
-
   atualizarPreviewNotas();
 }
 </script>
