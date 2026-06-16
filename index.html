@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/2921/2921222.png">
 <title>Controle de Mercadorias</title>
-<script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=S4xMjF3O8sd63heseWFo8GMvNuWxTdc801gD__dRBLOSG_JmC0Z-MdXNrb0fqPMGzRAJhwBLrPAnounthlP7ghs0rE1UkO_1nbPRJrew2tTLrxeVOwRDkJHgcil61Z1jOuLrOMJ1COA3cU2AMN8nn0t9G0zoqxh_MXZjcLHcF7taepWzV6n9bay-sMBtjbI5So0vEr3lm3Tb7zl8HvpSNZuGAe7LRZJ8aRQXiBSdHT6xm0dAx7ycy0g3X9QfLEVoLa-PP-bh3lvGNKak3PHw_Ix_hbu_juPZEP-Ql31JTrExdJBxQG9buz8ckoqIPZ7856pTz84uhuPflG4ZNQxkwQ" charset="UTF-8"></script><script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -58,8 +58,251 @@ function limparPesquisa(){limparCampos(["pesq-codigo","pesq-lote","pesq-data-ini
 async function editarMovimento(id){const{data}=await supa.from("movimentos").select("*").eq("id",id).maybeSingle();irPara("registrar");document.getElementById("mov-id").value=data.id;document.getElementById("mov-nota-url").value=data.nota_urls||data.nota_url||"";document.getElementById("mov-tipo").value=data.tipo;document.getElementById("mov-codigo").value=data.codigo;document.getElementById("mov-produto").value=data.produto;document.getElementById("mov-produto-id").value=data.produto_id;document.getElementById("mov-foto").value=data.foto_capa||"";document.getElementById("mov-quantidade").value=data.quantidade;document.getElementById("mov-data").value=data.data_movimento;document.getElementById("mov-lote").value=data.lote_interno||"";document.getElementById("mov-preview").innerHTML=data.foto_capa?`<img src="${data.foto_capa}">`:"+";try{notasAtuais=data.nota_urls?JSON.parse(data.nota_urls):[]}catch(e){notasAtuais=[]}if(data.nota_url&&!notasAtuais.includes(data.nota_url))notasAtuais.unshift(data.nota_url);atualizarPreviewNotas()}async function excluirMovimento(id){if(!confirm("Excluir movimentação? Esta ação remove o registro, mas não recalcula automaticamente o estoque."))return;const{error}=await supa.from("movimentos").delete().eq("id",id);if(error){console.log(error);alert("Erro ao excluir");return}pesquisarMovimentos()}
 function fotosArray(valor,capa){let lista=[];if(typeof valor==="string"&&valor.trim()){try{lista=JSON.parse(valor)}catch(e){lista=[valor]}}if(Array.isArray(valor))lista=valor;if(capa&&!lista.includes(capa))lista.unshift(capa);return lista.filter(Boolean)}function fotosBanco(lista){return JSON.stringify(lista.filter(Boolean))}function selecionarFotos(event){fotosSelecionadas=fotosSelecionadas.concat(Array.from(event.target.files||[]));atualizarPreviewFotos()}function atualizarPreviewFotos(){const preview=document.getElementById("preview-foto"),galeria=document.getElementById("galeria-preview");const todas=fotosAtuais.map(x=>({tipo:"url",valor:x})).concat(fotosSelecionadas.map(x=>({tipo:"file",valor:x})));galeria.innerHTML="";if(todas.length===0){preview.innerHTML="+";return}const primeira=todas[0];const srcPrincipal=primeira.tipo==="url"?primeira.valor:URL.createObjectURL(primeira.valor);preview.innerHTML=`<img src="${srcPrincipal}">`;todas.forEach((item,index)=>{const src=item.tipo==="url"?item.valor:URL.createObjectURL(item.valor);galeria.innerHTML+=`<div class="galeria-item"><img src="${src}"><button onclick="removerFoto(${index})">×</button></div>`})}function removerFoto(index){if(index<fotosAtuais.length){fotosAtuais.splice(index,1)}else{fotosSelecionadas.splice(index-fotosAtuais.length,1)}atualizarPreviewFotos()}async function enviarFotos(){const novas=[];for(const foto of fotosSelecionadas){novas.push(await uploadFoto(foto))}return fotosAtuais.concat(novas)}
 async function salvarProduto(){const id=document.getElementById("produto-id").value;let todas=[];try{todas=await enviarFotos()}catch(e){console.log(e);alert("Erro ao enviar foto.");return}const dados={codigo:document.getElementById("cad-codigo").value.trim(),produto:document.getElementById("cad-produto").value.trim(),local:document.getElementById("cad-local").value.trim(),quantidade:numero(document.getElementById("cad-quantidade").value),estoque_minimo:numero(document.getElementById("cad-estoque-minimo").value),foto_capa:todas[0]||"",fotos:fotosBanco(todas)};if(!dados.codigo||!dados.produto){alert("Preencha código e descrição.");return}let error;if(id){({error}=await supa.from("produtos").update(dados).eq("id",id))}else{({error}=await supa.from("produtos").insert([dados]))}if(error){console.log(error);alert("Erro ao salvar item.");return}alert("Item salvo!");limparProduto();carregarProdutos()}async function carregarProdutos(){const{data,error}=await supa.from("produtos").select("*").order("codigo");if(error){console.log(error);return}const lista=document.getElementById("lista-produtos");lista.innerHTML="";(data||[]).forEach(p=>{const baixo=numero(p.quantidade)<=numero(p.estoque_minimo);lista.innerHTML+=`<tr class="${baixo?"alerta":"ok"}"><td>${miniatura(p.foto_capa)}</td><td>${p.codigo}</td><td>${p.produto}</td><td>${p.local||""}</td><td>${p.quantidade||0}</td><td>${p.estoque_minimo||0}</td><td>${baixo?"Estoque baixo":"OK"}</td><td><button onclick="editarProduto(${p.id})">Editar</button><button onclick="excluirProduto(${p.id})" style="background:#c0392b;">Excluir</button></td></tr>`})}async function editarProduto(id){const{data}=await supa.from("produtos").select("*").eq("id",id).maybeSingle();document.getElementById("produto-id").value=data.id;document.getElementById("cad-codigo").value=data.codigo||"";document.getElementById("cad-produto").value=data.produto||"";document.getElementById("cad-local").value=data.local||"";document.getElementById("cad-quantidade").value=data.quantidade||0;document.getElementById("cad-estoque-minimo").value=data.estoque_minimo||0;fotosAtuais=fotosArray(data.fotos,data.foto_capa);fotosSelecionadas=[];atualizarPreviewFotos();irPara("cadastro")}async function excluirProduto(id){if(!confirm("Excluir item?"))return;const{error}=await supa.from("produtos").delete().eq("id",id);if(error){console.log(error);alert("Erro ao excluir item. Verifique se ele está vinculado a algum produto pronto.");return}carregarProdutos()}function limparProduto(){limparCampos(["produto-id","cad-codigo","cad-produto","cad-local","cad-quantidade","cad-estoque-minimo","input-fotos"]);fotosSelecionadas=[];fotosAtuais=[];document.getElementById("preview-foto").innerHTML="+";document.getElementById("galeria-preview").innerHTML=""}async function carregarEstoque(){const{data,error}=await supa.from("produtos").select("*").order("codigo");if(error){console.log(error);alert("Erro ao carregar estoque.");return}const tabela=document.getElementById("lista-estoque");tabela.innerHTML="";(data||[]).forEach(p=>{const baixo=numero(p.quantidade)<=numero(p.estoque_minimo);tabela.innerHTML+=`<tr class="${baixo?"alerta":"ok"}"><td>${miniatura(p.foto_capa)}</td><td>${p.codigo}</td><td>${p.produto}</td><td>${p.local||""}</td><td>${p.quantidade||0}</td><td>${p.estoque_minimo||0}</td><td>${baixo?"Estoque baixo":"OK"}</td><td><button onclick="editarProduto(${p.id})">Editar</button></td></tr>`})}
-async function buscarProdutoProntoPorCodigo(){const codigo=document.getElementById("pp-codigo").value.trim();if(!codigo)return;const{data}=await supa.from("produtos_prontos").select("*").eq("codigo",codigo).maybeSingle();if(data)editarProdutoPronto(data.id)}async function salvarProdutoPronto(){const id=document.getElementById("pp-id").value;const dados={codigo:document.getElementById("pp-codigo").value.trim(),descricao:document.getElementById("pp-descricao").value.trim()};if(!dados.codigo||!dados.descricao){alert("Preencha código e descrição do produto pronto.");return}let error,data;if(id){({data,error}=await supa.from("produtos_prontos").update(dados).eq("id",id).select().maybeSingle())}else{({data,error}=await supa.from("produtos_prontos").insert([dados]).select().maybeSingle())}if(error){console.log(error);alert("Erro ao salvar produto pronto.");return}produtoProntoAtualId=data.id;document.getElementById("pp-id").value=data.id;document.getElementById("produto-pronto-info").textContent="Produto selecionado: "+data.codigo+" - "+data.descricao;alert("Produto pronto salvo!");carregarProdutosProntos();carregarVinculosProduto()}async function carregarProdutosProntos(){const{data,error}=await supa.from("produtos_prontos").select("*").order("codigo");if(error){console.log(error);alert("Erro ao carregar produtos prontos.");return}const lista=document.getElementById("lista-produtos-prontos");lista.innerHTML="";(data||[]).forEach(p=>{lista.innerHTML+=`<tr><td>${p.codigo}</td><td>${p.descricao}</td><td><button onclick="editarProdutoPronto(${p.id})">Editar</button><button onclick="excluirProdutoPronto(${p.id})" style="background:#c0392b;">Excluir</button></td></tr>`})}async function editarProdutoPronto(id){const{data,error}=await supa.from("produtos_prontos").select("*").eq("id",id).maybeSingle();if(error||!data){alert("Produto pronto não encontrado.");return}produtoProntoAtualId=data.id;document.getElementById("pp-id").value=data.id;document.getElementById("pp-codigo").value=data.codigo||"";document.getElementById("pp-descricao").value=data.descricao||"";document.getElementById("produto-pronto-info").textContent="Produto selecionado: "+data.codigo+" - "+data.descricao;irPara("produto-pronto");carregarVinculosProduto()}async function excluirProdutoPronto(id){if(!confirm("Excluir produto pronto e seus vínculos?"))return;const{error}=await supa.from("produtos_prontos").delete().eq("id",id);if(error){console.log(error);alert("Erro ao excluir produto pronto.");return}limparProdutoPronto();carregarProdutosProntos()}function limparProdutoPronto(){produtoProntoAtualId="";itemVinculoEditandoId="";limparCampos(["pp-id","pp-codigo","pp-descricao","vinc-item-id","vinc-item-codigo","vinc-item-descricao","vinc-item-local","vinc-qtd"]);document.getElementById("lista-vinculos").innerHTML="";document.getElementById("produto-pronto-info").textContent="Salve ou edite um produto pronto para vincular itens."}async function buscarItemParaVinculo(){const codigo=document.getElementById("vinc-item-codigo").value.trim();if(!codigo)return;const{data,error}=await supa.from("produtos").select("*").eq("codigo",codigo).maybeSingle();if(error||!data){alert("Item não encontrado no cadastro.");document.getElementById("vinc-item-id").value="";document.getElementById("vinc-item-descricao").value="";document.getElementById("vinc-item-local").value="";return}document.getElementById("vinc-item-id").value=data.id;document.getElementById("vinc-item-descricao").value=data.produto;document.getElementById("vinc-item-local").value=data.local||""}async function adicionarItemProduto(){if(!produtoProntoAtualId){alert("Salve ou selecione um produto pronto primeiro.");return}const itemId=document.getElementById("vinc-item-id").value,qtd=numero(document.getElementById("vinc-qtd").value);if(!itemId||qtd<=0){alert("Informe o item e a quantidade usada por produto.");return}const dados={produto_pronto_id:Number(produtoProntoAtualId),item_id:Number(itemId),quantidade_por_produto:qtd};let error;if(itemVinculoEditandoId){({error}=await supa.from("produto_itens").update(dados).eq("id",itemVinculoEditandoId))}else{const{data:existe}=await supa.from("produto_itens").select("*").eq("produto_pronto_id",dados.produto_pronto_id).eq("item_id",dados.item_id).maybeSingle();if(existe){({error}=await supa.from("produto_itens").update({quantidade_por_produto:qtd}).eq("id",existe.id))}else{({error}=await supa.from("produto_itens").insert([dados]))}}if(error){console.log(error);alert("Erro ao vincular item.");return}itemVinculoEditandoId="";limparCampos(["vinc-item-id","vinc-item-codigo","vinc-item-descricao","vinc-item-local","vinc-qtd"]);carregarVinculosProduto()}async function carregarVinculosProduto(){if(!produtoProntoAtualId)return;const{data,error}=await supa.from("produto_itens").select("*").eq("produto_pronto_id",produtoProntoAtualId).order("id");if(error){console.log(error);alert("Erro ao carregar vínculos.");return}const lista=document.getElementById("lista-vinculos");lista.innerHTML="";for(const v of(data||[])){const{data:item}=await supa.from("produtos").select("*").eq("id",v.item_id).maybeSingle();lista.innerHTML+=`<tr><td>${item?item.codigo:""}</td><td>${item?item.produto:"Item não encontrado"}</td><td>${item?(item.local||""):""}</td><td>${v.quantidade_por_produto}</td><td><button onclick="editarVinculo(${v.id}, ${JSON.stringify(item?item.codigo:"")}, ${JSON.stringify(item?item.produto:"")}, ${JSON.stringify(item?(item.local||""):"")}, ${v.item_id}, ${v.quantidade_por_produto})">Editar</button><button onclick="excluirVinculo(${v.id})" style="background:#c0392b;">Excluir</button></td></tr>`}}function editarVinculo(id,codigo,descricao,local,itemId,qtd){itemVinculoEditandoId=id;document.getElementById("vinc-item-id").value=itemId;document.getElementById("vinc-item-codigo").value=codigo;document.getElementById("vinc-item-descricao").value=descricao;document.getElementById("vinc-item-local").value=local;document.getElementById("vinc-qtd").value=qtd}async function excluirVinculo(id){if(!confirm("Excluir vínculo do item?"))return;const{error}=await supa.from("produto_itens").delete().eq("id",id);if(error){console.log(error);alert("Erro ao excluir vínculo.");return}carregarVinculosProduto()}
-async function buscarProdutoProntoDetalhes(){const codigoProduto=document.getElementById("det-codigo-produto").value.trim();if(!codigoProduto)return;const{data}=await supa.from("produtos_prontos").select("*").eq("codigo",codigoProduto).maybeSingle();document.getElementById("det-descricao-produto").value=data?data.descricao:""}async function pesquisarDetalhesEmbalagens(){const codigoProduto=document.getElementById("det-codigo-produto").value.trim(),qtdProduzir=numero(document.getElementById("det-quantidade").value);if(!codigoProduto||qtdProduzir<=0){alert("Informe o código do produto e a quantidade a produzir.");return}const{data:produto,error:erroProduto}=await supa.from("produtos_prontos").select("*").eq("codigo",codigoProduto).maybeSingle();if(erroProduto||!produto){alert("Produto pronto não encontrado.");return}document.getElementById("det-descricao-produto").value=produto.descricao;const{data:vinculos,error:erroVinculos}=await supa.from("produto_itens").select("*").eq("produto_pronto_id",produto.id);if(erroVinculos){console.log(erroVinculos);alert("Erro ao buscar itens do produto.");return}const tabela=document.getElementById("resultado-detalhes-embalagens");tabela.innerHTML="";saidaItensCalculada=[];if(!vinculos||vinculos.length===0){tabela.innerHTML="<tr><td colspan='9'>Nenhum item vinculado a esse produto.</td></tr>";return}for(const v of vinculos){const{data:item}=await supa.from("produtos").select("*").eq("id",v.item_id).maybeSingle();if(!item)continue;const necessario=numero(v.quantidade_por_produto)*qtdProduzir,estoque=numero(item.quantidade),restante=estoque-necessario,minimo=numero(item.estoque_minimo);let status="OK",classe="ok";if(restante<0){status="Estoque insuficiente";classe="alerta"}else if(restante<=minimo){status="Abaixo da mínima";classe="alerta"}saidaItensCalculada.push({id:item.id,codigo:item.codigo,descricao:item.produto,local:item.local||"",quantidade_por_produto:numero(v.quantidade_por_produto),necessario,estoque,restante});tabela.innerHTML+=`<tr class="${classe}"><td>${item.codigo}</td><td>${item.produto}</td><td>${item.local||""}</td><td>${v.quantidade_por_produto}</td><td>${necessario}</td><td>${estoque}</td><td>${restante}</td><td>${minimo}</td><td>${status}</td></tr>`}}
+async function buscarProdutoProntoPorCodigo(){const codigo=document.getElementById("pp-codigo").value.trim();if(!codigo)return;const{data}=await supa.from("produtos_prontos").select("*").eq("codigo",codigo).maybeSingle();if(data)editarProdutoPronto(data.id)}async function salvarProdutoPronto(){const id=document.getElementById("pp-id").value;const dados={codigo:document.getElementById("pp-codigo").value.trim(),descricao:document.getElementById("pp-descricao").value.trim()};if(!dados.codigo||!dados.descricao){alert("Preencha código e descrição do produto pronto.");return}let error,data;if(id){({data,error}=await supa.from("produtos_prontos").update(dados).eq("id",id).select().maybeSingle())}else{({data,error}=await supa.from("produtos_prontos").insert([dados]).select().maybeSingle())}if(error){console.log(error);alert("Erro ao salvar produto pronto.");return}produtoProntoAtualId=data.id;document.getElementById("pp-id").value=data.id;document.getElementById("produto-pronto-info").textContent="Produto selecionado: "+data.codigo+" - "+data.descricao;alert("Produto pronto salvo!");carregarProdutosProntos();carregarVinculosProduto()}async function carregarProdutosProntos(){const{data,error}=await supa.from("produtos_prontos").select("*").order("codigo");if(error){console.log(error);alert("Erro ao carregar produtos prontos.");return}const lista=document.getElementById("lista-produtos-prontos");lista.innerHTML="";(data||[]).forEach(p=>{lista.innerHTML+=`<tr><td>${p.codigo}</td><td>${p.descricao}</td><td><button onclick="editarProdutoPronto(${p.id})">Editar</button><button onclick="excluirProdutoPronto(${p.id})" style="background:#c0392b;">Excluir</button></td></tr>`})}async function editarProdutoPronto(id){const{data,error}=await supa.from("produtos_prontos").select("*").eq("id",id).maybeSingle();if(error||!data){alert("Produto pronto não encontrado.");return}produtoProntoAtualId=data.id;document.getElementById("pp-id").value=data.id;document.getElementById("pp-codigo").value=data.codigo||"";document.getElementById("pp-descricao").value=data.descricao||"";document.getElementById("produto-pronto-info").textContent="Produto selecionado: "+data.codigo+" - "+data.descricao;irPara("produto-pronto");carregarVinculosProduto()}async function excluirProdutoPronto(id){if(!confirm("Excluir produto pronto e seus vínculos?"))return;const{error}=await supa.from("produtos_prontos").delete().eq("id",id);if(error){console.log(error);alert("Erro ao excluir produto pronto.");return}limparProdutoPronto();carregarProdutosProntos()}function limparProdutoPronto(){produtoProntoAtualId="";itemVinculoEditandoId="";limparCampos(["pp-id","pp-codigo","pp-descricao","vinc-item-id","vinc-item-codigo","vinc-item-descricao","vinc-item-local","vinc-qtd"]);document.getElementById("lista-vinculos").innerHTML="";document.getElementById("produto-pronto-info").textContent="Salve ou edite um produto pronto para vincular itens."}async function buscarItemParaVinculo(){const codigo=document.getElementById("vinc-item-codigo").value.trim();if(!codigo)return;const{data,error}=await supa.from("produtos").select("*").eq("codigo",codigo).maybeSingle();if(error||!data){alert("Item não encontrado no cadastro.");document.getElementById("vinc-item-id").value="";document.getElementById("vinc-item-descricao").value="";document.getElementById("vinc-item-local").value="";return}document.getElementById("vinc-item-id").value=data.id;document.getElementById("vinc-item-descricao").value=data.produto;document.getElementById("vinc-item-local").value=data.local||""}async function adicionarItemProduto(){
+  if(!produtoProntoAtualId){
+    alert("Salve ou selecione um produto pronto primeiro.");
+    return;
+  }
+
+  const itemId=document.getElementById("vinc-item-id").value;
+  const qtd=numero(document.getElementById("vinc-qtd").value);
+
+  if(!itemId||qtd<=0){
+    alert("Informe o item e a quantidade usada por produto.");
+    return;
+  }
+
+  const dados={
+    produto_pronto_id:Number(produtoProntoAtualId),
+    item_id:Number(itemId),
+    quantidade_por_produto:qtd
+  };
+
+  let error;
+
+  if(itemVinculoEditandoId){
+    ({error}=await supa.from("produto_itens").update(dados).eq("id",itemVinculoEditandoId));
+  }else{
+    const {data:existentes,error:erroBusca}=await supa
+      .from("produto_itens")
+      .select("*")
+      .eq("produto_pronto_id",dados.produto_pronto_id)
+      .eq("item_id",dados.item_id)
+      .order("id");
+
+    if(erroBusca){
+      console.log(erroBusca);
+      alert("Erro ao verificar item já vinculado.");
+      return;
+    }
+
+    if(existentes && existentes.length>0){
+      const principal = existentes[0];
+
+      ({error}=await supa
+        .from("produto_itens")
+        .update({quantidade_por_produto:qtd})
+        .eq("id",principal.id));
+
+      for(const dup of existentes.slice(1)){
+        await supa.from("produto_itens").delete().eq("id",dup.id);
+      }
+    }else{
+      ({error}=await supa.from("produto_itens").insert([dados]));
+    }
+  }
+
+  if(error){
+    console.log(error);
+    alert("Erro ao vincular item.");
+    return;
+  }
+
+  itemVinculoEditandoId="";
+  limparCampos(["vinc-item-id","vinc-item-codigo","vinc-item-descricao","vinc-item-local","vinc-qtd"]);
+  carregarVinculosProduto();
+}
+
+async function carregarVinculosProduto(){
+  if(!produtoProntoAtualId) return;
+
+  const {data,error}=await supa
+    .from("produto_itens")
+    .select("*")
+    .eq("produto_pronto_id",produtoProntoAtualId)
+    .order("id");
+
+  if(error){
+    console.log(error);
+    alert("Erro ao carregar vínculos.");
+    return;
+  }
+
+  const lista=document.getElementById("lista-vinculos");
+  lista.innerHTML="";
+
+  const unicos = new Map();
+
+  for(const v of (data || [])){
+    const chave = String(v.item_id);
+
+    if(!unicos.has(chave)){
+      unicos.set(chave, v);
+    }else{
+      const mantido = unicos.get(chave);
+
+      // apaga duplicado no Supabase
+      await supa.from("produto_itens").delete().eq("id", v.id);
+
+      // se o duplicado tinha uma quantidade maior, preserva essa quantidade
+      if(Number(v.quantidade_por_produto || 0) > Number(mantido.quantidade_por_produto || 0)){
+        mantido.quantidade_por_produto = v.quantidade_por_produto;
+        await supa
+          .from("produto_itens")
+          .update({quantidade_por_produto:v.quantidade_por_produto})
+          .eq("id", mantido.id);
+      }
+    }
+  }
+
+  for(const v of Array.from(unicos.values())){
+    const {data:item}=await supa
+      .from("produtos")
+      .select("*")
+      .eq("id",v.item_id)
+      .maybeSingle();
+
+    lista.innerHTML+=`
+      <tr>
+        <td>${item?item.codigo:""}</td>
+        <td>${item?item.produto:"Item não encontrado"}</td>
+        <td>${item?(item.local||""):""}</td>
+        <td>${v.quantidade_por_produto}</td>
+        <td>
+          <button onclick="editarVinculo(${v.id}, ${JSON.stringify(item?item.codigo:"")}, ${JSON.stringify(item?item.produto:"")}, ${JSON.stringify(item?(item.local||""):"")}, ${v.item_id}, ${v.quantidade_por_produto})">Editar</button>
+          <button onclick="excluirVinculo(${v.id})" style="background:#c0392b;">Excluir</button>
+        </td>
+      </tr>
+    `;
+  }
+}
+
+function editarVinculo(id,codigo,descricao,local,itemId,qtd){itemVinculoEditandoId=id;document.getElementById("vinc-item-id").value=itemId;document.getElementById("vinc-item-codigo").value=codigo;document.getElementById("vinc-item-descricao").value=descricao;document.getElementById("vinc-item-local").value=local;document.getElementById("vinc-qtd").value=qtd}async function excluirVinculo(id){if(!confirm("Excluir vínculo do item?"))return;const{error}=await supa.from("produto_itens").delete().eq("id",id);if(error){console.log(error);alert("Erro ao excluir vínculo.");return}carregarVinculosProduto()}
+async function buscarProdutoProntoDetalhes(){const codigoProduto=document.getElementById("det-codigo-produto").value.trim();if(!codigoProduto)return;const{data}=await supa.from("produtos_prontos").select("*").eq("codigo",codigoProduto).maybeSingle();document.getElementById("det-descricao-produto").value=data?data.descricao:""}async function pesquisarDetalhesEmbalagens(){
+  const codigoProduto=document.getElementById("det-codigo-produto").value.trim();
+  const qtdProduzir=numero(document.getElementById("det-quantidade").value);
+
+  if(!codigoProduto||qtdProduzir<=0){
+    alert("Informe o código do produto e a quantidade a produzir.");
+    return;
+  }
+
+  const {data:produto,error:erroProduto}=await supa
+    .from("produtos_prontos")
+    .select("*")
+    .eq("codigo",codigoProduto)
+    .maybeSingle();
+
+  if(erroProduto||!produto){
+    alert("Produto pronto não encontrado.");
+    return;
+  }
+
+  document.getElementById("det-descricao-produto").value=produto.descricao;
+
+  const {data:vinculos,error:erroVinculos}=await supa
+    .from("produto_itens")
+    .select("*")
+    .eq("produto_pronto_id",produto.id);
+
+  if(erroVinculos){
+    console.log(erroVinculos);
+    alert("Erro ao buscar itens do produto.");
+    return;
+  }
+
+  const tabela=document.getElementById("resultado-detalhes-embalagens");
+  tabela.innerHTML="";
+  saidaItensCalculada=[];
+
+  if(!vinculos||vinculos.length===0){
+    tabela.innerHTML="<tr><td colspan='9'>Nenhum item vinculado a esse produto.</td></tr>";
+    return;
+  }
+
+  const unicos = new Map();
+
+  for(const v of vinculos){
+    const chave = String(v.item_id);
+
+    if(!unicos.has(chave)){
+      unicos.set(chave, v);
+    }else{
+      const mantido = unicos.get(chave);
+
+      await supa.from("produto_itens").delete().eq("id", v.id);
+
+      if(Number(v.quantidade_por_produto || 0) > Number(mantido.quantidade_por_produto || 0)){
+        mantido.quantidade_por_produto = v.quantidade_por_produto;
+        await supa
+          .from("produto_itens")
+          .update({quantidade_por_produto:v.quantidade_por_produto})
+          .eq("id", mantido.id);
+      }
+    }
+  }
+
+  for(const v of Array.from(unicos.values())){
+    const {data:item}=await supa
+      .from("produtos")
+      .select("*")
+      .eq("id",v.item_id)
+      .maybeSingle();
+
+    if(!item) continue;
+
+    const necessario=numero(v.quantidade_por_produto)*qtdProduzir;
+    const estoque=numero(item.quantidade);
+    const restante=estoque-necessario;
+    const minimo=numero(item.estoque_minimo);
+
+    let status="OK",classe="ok";
+
+    if(restante<0){
+      status="Estoque insuficiente";
+      classe="alerta";
+    }else if(restante<=minimo){
+      status="Abaixo da mínima";
+      classe="alerta";
+    }
+
+    saidaItensCalculada.push({
+      id:item.id,
+      codigo:item.codigo,
+      descricao:item.produto,
+      local:item.local||"",
+      quantidade_por_produto:numero(v.quantidade_por_produto),
+      necessario,
+      estoque,
+      restante
+    });
+
+    tabela.innerHTML+=`
+      <tr class="${classe}">
+        <td>${item.codigo}</td>
+        <td>${item.produto}</td>
+        <td>${item.local||""}</td>
+        <td>${v.quantidade_por_produto}</td>
+        <td>${necessario}</td>
+        <td>${estoque}</td>
+        <td>${restante}</td>
+        <td>${minimo}</td>
+        <td>${status}</td>
+      </tr>
+    `;
+  }
+}
+
 async function registrarSaidaEmbalagensProduto(){const codigoProduto=document.getElementById("det-codigo-produto").value.trim(),descricaoProduto=document.getElementById("det-descricao-produto").value.trim(),loteProduto=document.getElementById("det-lote-produto").value.trim(),qtdProduzida=numero(document.getElementById("det-quantidade").value);if(!codigoProduto||!descricaoProduto||!loteProduto||qtdProduzida<=0){alert("Informe código, lote e quantidade da produção.");return}if(!saidaItensCalculada||saidaItensCalculada.length===0){alert("Clique em Pesquisar primeiro para calcular os itens.");return}const faltando=saidaItensCalculada.filter(e=>e.restante<0);if(faltando.length>0){const nomes=faltando.map(e=>e.codigo+" - "+e.descricao).join("\n");if(!confirm("Alguns itens ficarão negativos:\n\n"+nomes+"\n\nDeseja registrar a produção mesmo assim?"))return}else{if(!confirm("Confirmar produção e baixa dos itens?"))return}const{data:produtoPronto}=await supa.from("produtos_prontos").select("*").eq("codigo",codigoProduto).maybeSingle();const{data:producao,error:erroProducao}=await supa.from("producoes_prontas").insert([{produto_pronto_id:produtoPronto?produtoPronto.id:null,codigo_produto:codigoProduto,descricao_produto:descricaoProduto,lote_produto:loteProduto,quantidade_produzida:qtdProduzida,data_producao:new Date().toISOString().slice(0,10)}]).select().maybeSingle();if(erroProducao){console.log(erroProducao);alert("Erro ao registrar produção.");return}for(const item of saidaItensCalculada){const{error:updateError}=await supa.from("produtos").update({quantidade:item.restante}).eq("id",item.id);if(updateError){console.log(updateError);alert("Erro ao baixar estoque do item: "+item.codigo);return}await supa.from("producoes_prontas_itens").insert([{producao_id:producao.id,item_id:item.id,codigo_item:item.codigo,descricao_item:item.descricao,local_item:item.local,quantidade_por_produto:item.quantidade_por_produto,quantidade_baixada:item.necessario,estoque_antes:item.estoque,estoque_depois:item.restante}]);await supa.from("movimentos").insert([{produto_id:item.id,codigo:item.codigo,produto:item.descricao,foto_capa:"",tipo:"saida",quantidade:item.necessario,data_movimento:new Date().toISOString().slice(0,10),lote_interno:"Produção "+codigoProduto+" / Lote "+loteProduto,nota_url:"",nota_urls:"[]"}])}alert("Produção registrada e estoque baixado com sucesso!");await pesquisarDetalhesEmbalagens()}function limparDetalhesEmbalagens(){saidaItensCalculada=[];limparCampos(["det-codigo-produto","det-descricao-produto","det-lote-produto","det-quantidade"]);document.getElementById("resultado-detalhes-embalagens").innerHTML=""}
 async function pesquisarProducoes(){const codigo=document.getElementById("prod-pesq-codigo").value.trim(),lote=document.getElementById("prod-pesq-lote").value.trim(),di=document.getElementById("prod-pesq-data-inicio").value,df=document.getElementById("prod-pesq-data-fim").value;let query=supa.from("producoes_prontas").select("*").order("data_producao",{ascending:false});if(codigo)query=query.eq("codigo_produto",codigo);if(lote)query=query.ilike("lote_produto","%"+lote+"%");if(di)query=query.gte("data_producao",di);if(df)query=query.lte("data_producao",df);const{data,error}=await query;if(error){console.log(error);alert("Erro ao pesquisar produções.");return}const lista=document.getElementById("lista-producoes");lista.innerHTML="";document.getElementById("lista-producao-itens").innerHTML="";if(!data||data.length===0){lista.innerHTML="<tr><td colspan='6'>Nenhuma produção encontrada.</td></tr>";return}data.forEach(p=>{lista.innerHTML+=`<tr><td>${p.data_producao||""}</td><td>${p.codigo_produto||""}</td><td>${p.descricao_produto||""}</td><td>${p.lote_produto||""}</td><td>${p.quantidade_produzida||0}</td><td><button onclick="verItensProducao(${p.id})">Detalhes</button></td></tr>`})}async function verItensProducao(id){const{data,error}=await supa.from("producoes_prontas_itens").select("*").eq("producao_id",id).order("id");if(error){console.log(error);alert("Erro ao carregar itens da produção.");return}const lista=document.getElementById("lista-producao-itens");lista.innerHTML="";if(!data||data.length===0){lista.innerHTML="<tr><td colspan='7'>Nenhum item encontrado.</td></tr>";return}data.forEach(i=>{lista.innerHTML+=`<tr><td>${i.codigo_item||""}</td><td>${i.descricao_item||""}</td><td>${i.local_item||""}</td><td>${i.quantidade_por_produto||0}</td><td>${i.quantidade_baixada||0}</td><td>${i.estoque_antes||0}</td><td>${i.estoque_depois||0}</td></tr>`})}function limparPesquisaProducoes(){limparCampos(["prod-pesq-codigo","prod-pesq-lote","prod-pesq-data-inicio","prod-pesq-data-fim"]);document.getElementById("lista-producoes").innerHTML="";document.getElementById("lista-producao-itens").innerHTML=""}
 async function carregarUsuarios(){const{data}=await supa.from("usuarios").select("*").order("id",{ascending:false});const lista=document.getElementById("lista-usuarios");lista.innerHTML="";(data||[]).forEach(u=>{lista.innerHTML+=`<tr><td>${u.username}</td><td>${u.role}</td><td><button onclick="editarUsuario(${u.id})">Editar</button><button onclick="excluirUsuario(${u.id})" style="background:#c0392b;">Excluir</button></td></tr>`})}async function salvarUsuario(){const id=document.getElementById("usuario-id").value;const dados={username:document.getElementById("novo-user").value.trim(),senha:document.getElementById("nova-senha").value.trim(),role:document.getElementById("role").value};let error;if(id){({error}=await supa.from("usuarios").update(dados).eq("id",id))}else{({error}=await supa.from("usuarios").insert([dados]))}if(error){console.log(error);alert("Erro ao salvar usuário");return}alert("Usuário salvo!");limparUsuario();carregarUsuarios()}async function editarUsuario(id){const{data}=await supa.from("usuarios").select("*").eq("id",id).maybeSingle();document.getElementById("usuario-id").value=data.id;document.getElementById("novo-user").value=data.username;document.getElementById("nova-senha").value=data.senha;document.getElementById("role").value=data.role}async function excluirUsuario(id){if(!confirm("Excluir usuário?"))return;const{error}=await supa.from("usuarios").delete().eq("id",id);if(error){console.log(error);alert("Erro ao excluir usuário");return}carregarUsuarios()}function limparUsuario(){limparCampos(["usuario-id","novo-user","nova-senha"]);document.getElementById("role").value="user"}
