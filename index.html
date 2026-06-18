@@ -153,45 +153,15 @@ input,select{padding:12px;border:none;border-radius:12px;background:#f5f2fb;outl
 
 <div id="toastContainer" class="toast-container"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL = "https://drtgtwwsbxrmqcaabzcs.supabase.co";
 const SUPABASE_KEY = "sb_publishable_h0Ep974nBED88dimAY0BGQ_KLqoQ7po";
-let banco = null;
-let realtimeIniciado = false;
-
-function carregarSupabase(){
-  return new Promise((resolve, reject) => {
-    if(window.supabase){
-      banco = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      resolve();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-    script.async = true;
-    script.onload = () => {
-      if(window.supabase){
-        banco = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        resolve();
-      }else{
-        reject(new Error("Supabase não carregou"));
-      }
-    };
-    script.onerror = () => reject(new Error("Falha ao carregar Supabase"));
-    document.head.appendChild(script);
-
-    setTimeout(() => {
-      if(!banco) reject(new Error("Tempo limite ao carregar Supabase"));
-    }, 15000);
-  });
+if(typeof supabase === "undefined"){
+  document.body.innerHTML = `<div style="padding:25px;font-family:Arial;color:#4d4694"><h2>Sofisticatto Financeiro</h2><p>Não foi possível carregar a conexão com o Supabase.</p><p>Verifique sua internet e atualize a página.</p><button onclick="location.reload()" style="padding:12px 18px;border:none;border-radius:12px;background:#5a4fa3;color:white">Tentar novamente</button></div>`;
+  throw new Error("Supabase não carregou");
 }
-
-function bancoPronto(){
-  if(banco) return true;
-  alert("O sistema ainda está conectando. Aguarde alguns segundos e tente novamente.");
-  return false;
-}
+const banco = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function mostrarCarregando(texto){
   const box = document.getElementById("carregandoSistema");
@@ -225,7 +195,6 @@ let atualizacaoPendenteEnquantoEdita = false;
 let formularioRelatorioAlterado = false;
 
 async function entrar(){
-  if(!bancoPronto()) return;
   const login = document.getElementById("login").value.trim();
   const senha = document.getElementById("senha").value.trim();
   const resposta = await banco.from("usuarios").select("*").eq("login", login).eq("senha", senha).single();
@@ -697,7 +666,7 @@ function atualizarDashboard(){
     return encontrado?.cor || "#5a4fa3";
   });
 
-  montarGraficoFallback(labels, valores, cores);
+  montarGraficoFallback(labels, valores);
 
   if(typeof Chart === "undefined"){
     const canvas = document.getElementById("grafico");
@@ -720,7 +689,7 @@ function atualizarDashboard(){
   atualizarAbasFiltro("dash", filtroDashboard);
 }
 
-function montarGraficoFallback(labels, valores, cores = []){
+function montarGraficoFallback(labels, valores){
   const boxGrafico = document.querySelector(".grafico-box");
   if(!boxGrafico) return;
 
@@ -741,8 +710,7 @@ function montarGraficoFallback(labels, valores, cores = []){
   fallback.innerHTML = labels.map((nome, i) => {
     const valor = valores[i] || 0;
     const largura = Math.max(4, Math.round((valor / maior) * 100));
-    const cor = cores[i] || "#5a4fa3";
-    return `<div class="grafico-linha"><div class="grafico-nome">${nome}</div><div class="grafico-barra"><div class="grafico-preenchido" style="width:${largura}%;background:${cor}"></div></div><div class="grafico-valor">${formatarMoeda(valor)}</div></div>`;
+    return `<div class="grafico-linha"><div class="grafico-nome">${nome}</div><div class="grafico-barra"><div class="grafico-preenchido" style="width:${largura}%"></div></div><div class="grafico-valor">${formatarMoeda(valor)}</div></div>`;
   }).join("");
 }
 
@@ -1048,35 +1016,29 @@ function deveAtualizarTelaPorTempoReal(payload){
   return false;
 }
 
-function atualizarDadosLocaisTempoReal(payload){
+function aplicarAlteracaoTempoRealNaTela(payload){
   if(!payload) return;
 
-  const evento = payload.eventType;
   const novo = payload.new;
   const antigo = payload.old;
 
-  if(evento === "INSERT" && novo){
+  if(payload.eventType === "INSERT" && novo){
     const existe = todosBoletos.some(item => String(item.id) === String(novo.id));
     if(!existe){
       todosBoletos.unshift(novo);
     }
   }
 
-  if(evento === "UPDATE" && novo){
-    let encontrou = false;
-    todosBoletos = todosBoletos.map(item => {
-      if(String(item.id) === String(novo.id)){
-        encontrou = true;
-        return novo;
-      }
-      return item;
-    });
-    if(!encontrou){
+  if(payload.eventType === "UPDATE" && novo){
+    const index = todosBoletos.findIndex(item => String(item.id) === String(novo.id));
+    if(index >= 0){
+      todosBoletos[index] = {...todosBoletos[index], ...novo};
+    }else{
       todosBoletos.unshift(novo);
     }
   }
 
-  if(evento === "DELETE" && antigo){
+  if(payload.eventType === "DELETE" && antigo){
     todosBoletos = todosBoletos.filter(item => String(item.id) !== String(antigo.id));
   }
 
@@ -1099,9 +1061,20 @@ function atualizarTempoRealComDebounce(payload){
     return;
   }
 
-  // Atualiza a tela na hora usando o próprio evento do Realtime,
-  // sem buscar tudo de novo no Supabase. Isso deixa Financeiro ↔ Banco bem mais rápido.
-  atualizarDadosLocaisTempoReal(payload);
+  // Atualiza a lista na hora usando o próprio dado recebido pelo Realtime.
+  // Assim o balão aparece e o cliente já entra na tabela sem precisar atualizar a página.
+  aplicarAlteracaoTempoRealNaTela(payload);
+
+  // Depois faz uma conferência silenciosa no Supabase para garantir que ficou tudo igual ao banco.
+  if(timerAtualizacaoTempoReal){
+    clearTimeout(timerAtualizacaoTempoReal);
+  }
+
+  timerAtualizacaoTempoReal = setTimeout(() => {
+    if(usuarioLogado && !usuarioEstaEditandoRelatorio()){
+      carregarRelatorios(true);
+    }
+  }, 1200);
 }
 
 function iniciarSincronizacaoAutomatica(){
@@ -1110,42 +1083,26 @@ function iniciarSincronizacaoAutomatica(){
 }
 
 
-function iniciarRealtime(){
-  if(realtimeIniciado || !banco) return;
-  realtimeIniciado = true;
+banco
+.channel("tempo-real")
+.on("postgres_changes",{event:"*",schema:"public",table:"boletos"},(payload) => {
+  atualizarTempoRealComDebounce(payload);
+})
+.subscribe();
 
-  banco
-  .channel("tempo-real")
-  .on("postgres_changes",{event:"*",schema:"public",table:"boletos"},(payload) => {
-    atualizarTempoRealComDebounce(payload);
-  })
-  .subscribe((status) => {
-    if(status === "SUBSCRIBED"){
-      console.log("Realtime conectado na tabela boletos");
-    }
-  });
-}
-
-document.addEventListener("DOMContentLoaded", async function(){
+window.onload = function(){
   try{
-    mostrarCarregando("Conectando...");
-    await carregarSupabase();
-    iniciarRealtime();
-    esconderCarregando();
-
     const salvo = localStorage.getItem("usuarioLogado");
     if(salvo){
       usuarioLogado = JSON.parse(salvo);
       iniciarSistema();
-    }else{
-      atualizarBotaoNotificacao();
     }
   }catch(erro){
-    console.error("Erro ao iniciar sistema:", erro);
+    console.error("Erro ao recuperar login salvo:", erro);
+    localStorage.removeItem("usuarioLogado");
     esconderCarregando();
-    mostrarBalaoSistema("Erro de conexão", "Não foi possível conectar agora. Verifique a internet e atualize a página.");
   }
-});
+};
 </script>
 
 </body>
