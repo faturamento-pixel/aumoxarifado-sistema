@@ -6,6 +6,8 @@
 <title>Sofisticatto Financeiro</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%235a4fa3'/%3E%3Ctext x='50' y='63' text-anchor='middle' font-size='54' fill='white' font-family='Arial'%3ES%3C/text%3E%3C/svg%3E">
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
 body{background:#f5f2fb;display:flex;min-height:100vh;color:#4d4694}
@@ -153,14 +155,9 @@ input,select{padding:12px;border:none;border-radius:12px;background:#f5f2fb;outl
 
 <div id="toastContainer" class="toast-container"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const SUPABASE_URL = "https://drtgtwwsbxrmqcaabzcs.supabase.co";
 const SUPABASE_KEY = "sb_publishable_h0Ep974nBED88dimAY0BGQ_KLqoQ7po";
-if(typeof supabase === "undefined"){
-  document.body.innerHTML = `<div style="padding:25px;font-family:Arial;color:#4d4694"><h2>Sofisticatto Financeiro</h2><p>Não foi possível carregar a conexão com o Supabase.</p><p>Verifique sua internet e atualize a página.</p><button onclick="location.reload()" style="padding:12px 18px;border:none;border-radius:12px;background:#5a4fa3;color:white">Tentar novamente</button></div>`;
-  throw new Error("Supabase não carregou");
-}
 const banco = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function mostrarCarregando(texto){
@@ -192,7 +189,6 @@ let intervaloSincronizacao = null;
 let bancosJaCarregados = false;
 let notificacoesRecebidas = new Set();
 let atualizacaoPendenteEnquantoEdita = false;
-let formularioRelatorioAlterado = false;
 
 async function entrar(){
   const login = document.getElementById("login").value.trim();
@@ -219,6 +215,7 @@ function iniciarSistema(){
   mostrarSecao("dashboard");
   carregarRelatorios();
   carregarUsuarios();
+  iniciarSincronizacaoAutomatica();
 }
 
 function mostrarSecao(secao){
@@ -244,9 +241,9 @@ async function carregarBancos(){
   });
 }
 
-async function carregarRelatorios(silencioso = false){
+async function carregarRelatorios(){
   try{
-    if(!silencioso) mostrarCarregando("Atualizando dados...");
+    mostrarCarregando("Atualizando dados...");
 
     if(!bancosJaCarregados){
       await carregarBancos();
@@ -269,12 +266,12 @@ async function carregarRelatorios(silencioso = false){
     console.error("Erro geral ao carregar relatórios:", erro);
     mostrarToastSistema("Erro no carregamento", "Confira sua internet e tente abrir novamente.");
   }finally{
-    if(!silencioso) esconderCarregando();
+    esconderCarregando();
   }
 }
 
 function montarSelectBanco(id, bancoAtual){
-  let html = `<select id="banco_${id}" onchange="marcarEdicaoRelatorio()"><option value="">Selecione</option>`;
+  let html = `<select id="banco_${id}"><option value="">Selecione</option>`;
   listaBancos.forEach(b => html += `<option value="${b.nome}" ${b.nome === bancoAtual ? "selected" : ""}>${b.nome}</option>`);
   html += `</select>`;
   return html;
@@ -293,8 +290,8 @@ function montarTabela(){
     let valorCampo = "R$ " + valorParaNumero(item.valor || 0).toLocaleString("pt-BR");
 
     if(usuarioLogado.tipo === "financeiro"){
-      nomeCampo = `<input id="edit_nome_${item.id}" value="${item.nome || ""}" oninput="marcarEdicaoRelatorio()">`;
-      valorCampo = `<input type="text" id="edit_valor_${item.id}" value="${valorParaInput(item.valor || 0)}" inputmode="decimal" oninput="mascaraValor(this);marcarEdicaoRelatorio()">`;
+      nomeCampo = `<input id="edit_nome_${item.id}" value="${item.nome || ""}">`;
+      valorCampo = `<input type="text" id="edit_valor_${item.id}" value="${valorParaInput(item.valor || 0)}" inputmode="decimal" oninput="mascaraValor(this)">`;
       botoes += `<button class="btn azul" onclick="editarRelatorio('${item.id}')">Editar</button>`;
       if(item.banco){ botoes += `<button class="btn roxo" onclick="finalizar('${item.id}')">Finalizar</button>`; }
       botoes += `<button class="btn vermelho" onclick="excluir('${item.id}')">Excluir</button>`;
@@ -302,15 +299,15 @@ function montarTabela(){
 
     if(usuarioLogado.tipo === "banco"){
       bancoCampo = montarSelectBanco(item.id, item.banco || "");
-      observacaoCampo = `<input id="obs_${item.id}" value="${item.observacao || ""}" placeholder="Observação" oninput="marcarEdicaoRelatorio()">`;
+      observacaoCampo = `<input id="obs_${item.id}" value="${item.observacao || ""}" placeholder="Observação">`;
       botoes += `<button class="btn verde" onclick="salvarBanco('${item.id}')">Salvar Banco</button>`;
     }
 
     if(usuarioLogado.tipo === "admin"){
-      nomeCampo = `<input id="edit_nome_${item.id}" value="${item.nome || ""}" oninput="marcarEdicaoRelatorio()">`;
-      valorCampo = `<input type="text" id="edit_valor_${item.id}" value="${valorParaInput(item.valor || 0)}" inputmode="decimal" oninput="mascaraValor(this);marcarEdicaoRelatorio()">`;
+      nomeCampo = `<input id="edit_nome_${item.id}" value="${item.nome || ""}">`;
+      valorCampo = `<input type="text" id="edit_valor_${item.id}" value="${valorParaInput(item.valor || 0)}" inputmode="decimal" oninput="mascaraValor(this)">`;
       bancoCampo = montarSelectBanco(item.id, item.banco || "");
-      observacaoCampo = `<input id="obs_${item.id}" value="${item.observacao || ""}" placeholder="Observação" oninput="marcarEdicaoRelatorio()">`;
+      observacaoCampo = `<input id="obs_${item.id}" value="${item.observacao || ""}" placeholder="Observação">`;
       botoes += `<button class="btn azul" onclick="editarRelatorio('${item.id}')">Editar</button>`;
       if(item.banco){ botoes += `<button class="btn roxo" onclick="finalizar('${item.id}')">Finalizar</button>`; }
       botoes += `<button class="btn vermelho" onclick="excluir('${item.id}')">Excluir</button>`;
@@ -869,7 +866,7 @@ async function salvarBanco(id){
   if(!bancoSelecionado){ alert("Selecione um banco"); return; }
 
   await banco.from("boletos").update({banco:bancoSelecionado,observacao:observacao}).eq("id",id);
-  limparEdicaoRelatorio();
+  atualizacaoPendenteEnquantoEdita = false;
   mostrarBalaoSistema("Banco salvo", "O financeiro já pode ver essa autorização.");
   carregarRelatorios();
 }
@@ -900,7 +897,6 @@ async function editarRelatorio(id){
   }
 
   await banco.from("boletos").update(dados).eq("id",id);
-  limparEdicaoRelatorio();
   alert("Relatório atualizado!");
   carregarRelatorios();
 }
@@ -964,18 +960,7 @@ async function carregarUsuarios(){
   });
 }
 
-function marcarEdicaoRelatorio(){
-  formularioRelatorioAlterado = true;
-}
-
-function limparEdicaoRelatorio(){
-  formularioRelatorioAlterado = false;
-  atualizacaoPendenteEnquantoEdita = false;
-}
-
 function usuarioEstaEditandoRelatorio(){
-  if(formularioRelatorioAlterado) return true;
-
   const ativo = document.activeElement;
   if(!ativo) return false;
 
@@ -1016,36 +1001,49 @@ function deveAtualizarTelaPorTempoReal(payload){
   return false;
 }
 
-function aplicarAlteracaoTempoRealNaTela(payload){
-  if(!payload) return;
-
-  const novo = payload.new;
-  const antigo = payload.old;
-
-  if(payload.eventType === "INSERT" && novo){
-    const existe = todosBoletos.some(item => String(item.id) === String(novo.id));
-    if(!existe){
-      todosBoletos.unshift(novo);
-    }
-  }
-
-  if(payload.eventType === "UPDATE" && novo){
-    const index = todosBoletos.findIndex(item => String(item.id) === String(novo.id));
-    if(index >= 0){
-      todosBoletos[index] = {...todosBoletos[index], ...novo};
-    }else{
-      todosBoletos.unshift(novo);
-    }
-  }
-
-  if(payload.eventType === "DELETE" && antigo){
-    todosBoletos = todosBoletos.filter(item => String(item.id) !== String(antigo.id));
-  }
-
+function redesenharTelasSemBuscar(){
   montarTabela();
   montarHistorico();
   atualizarDashboard();
   carregarNotificacoes();
+}
+
+function aplicarMudancaLocalDoRealtime(payload){
+  if(!payload) return false;
+
+  const evento = payload.eventType;
+  const novo = payload.new || null;
+  const antigo = payload.old || null;
+
+  if(evento === "INSERT" && novo){
+    const existe = todosBoletos.some(item => String(item.id) === String(novo.id));
+    if(!existe){
+      todosBoletos.unshift(novo);
+    }else{
+      todosBoletos = todosBoletos.map(item => String(item.id) === String(novo.id) ? {...item, ...novo} : item);
+    }
+    redesenharTelasSemBuscar();
+    return true;
+  }
+
+  if(evento === "UPDATE" && novo){
+    const existe = todosBoletos.some(item => String(item.id) === String(novo.id));
+    if(existe){
+      todosBoletos = todosBoletos.map(item => String(item.id) === String(novo.id) ? {...item, ...novo} : item);
+    }else{
+      todosBoletos.unshift(novo);
+    }
+    redesenharTelasSemBuscar();
+    return true;
+  }
+
+  if(evento === "DELETE" && antigo){
+    todosBoletos = todosBoletos.filter(item => String(item.id) !== String(antigo.id));
+    redesenharTelasSemBuscar();
+    return true;
+  }
+
+  return false;
 }
 
 function atualizarTempoRealComDebounce(payload){
@@ -1061,27 +1059,22 @@ function atualizarTempoRealComDebounce(payload){
     return;
   }
 
-  // Atualiza a lista na hora usando o próprio dado recebido pelo Realtime.
-  // Assim o balão aparece e o cliente já entra na tabela sem precisar atualizar a página.
-  aplicarAlteracaoTempoRealNaTela(payload);
+  const aplicouLocal = aplicarMudancaLocalDoRealtime(payload);
 
-  // Depois faz uma conferência silenciosa no Supabase para garantir que ficou tudo igual ao banco.
-  if(timerAtualizacaoTempoReal){
-    clearTimeout(timerAtualizacaoTempoReal);
-  }
-
-  timerAtualizacaoTempoReal = setTimeout(() => {
-    if(usuarioLogado && !usuarioEstaEditandoRelatorio()){
-      carregarRelatorios(true);
-    }
-  }, 1200);
+  setTimeout(() => carregarRelatorios(true), aplicouLocal ? 1200 : 200);
 }
 
 function iniciarSincronizacaoAutomatica(){
-  // Desativado para não deixar o celular pesado.
-  // A atualização instantânea fica pelo Realtime do Supabase.
-}
+  if(intervaloSincronizacao) clearInterval(intervaloSincronizacao);
 
+  // Segurança leve: não atualiza enquanto alguém está preenchendo a tabela.
+  // O principal fica por Realtime do Supabase.
+  intervaloSincronizacao = setInterval(() => {
+    if(usuarioLogado && !document.hidden && !usuarioEstaEditandoRelatorio()){
+      carregarRelatorios();
+    }
+  }, 60000);
+}
 
 banco
 .channel("tempo-real")
