@@ -69,7 +69,7 @@ table{width:100%;margin-top:20px;border-collapse:collapse;min-width:950px}th,td{
   <h3>Registrar Lote Interno</h3>
   <input id="lote-id" type="hidden">
   <input id="lote-produto-id" type="hidden">
-  <input id="lote-codigo" placeholder="Código do item" onblur="buscarItemParaLoteInterno()">
+  <input id="lote-codigo" placeholder="Código do item" onblur="window.buscarItemParaLoteInterno()">
   <input id="lote-produto" placeholder="Nome do produto" readonly>
   <input id="lote-local" placeholder="Local" readonly>
   <input id="lote-data" type="date">
@@ -358,6 +358,188 @@ async function registrarSaidaEmbalagensProduto(){const codigoProduto=document.ge
 async function pesquisarProducoes(){const codigo=document.getElementById("prod-pesq-codigo").value.trim(),lote=document.getElementById("prod-pesq-lote").value.trim(),di=document.getElementById("prod-pesq-data-inicio").value,df=document.getElementById("prod-pesq-data-fim").value;let query=supa.from("producoes_prontas").select("*").order("data_producao",{ascending:false});if(codigo)query=query.eq("codigo_produto",codigo);if(lote)query=query.ilike("lote_produto","%"+lote+"%");if(di)query=query.gte("data_producao",di);if(df)query=query.lte("data_producao",df);const{data,error}=await query;if(error){console.log(error);alert("Erro ao pesquisar produções.");return}const lista=document.getElementById("lista-producoes");lista.innerHTML="";document.getElementById("lista-producao-itens").innerHTML="";if(!data||data.length===0){lista.innerHTML="<tr><td colspan='6'>Nenhuma produção encontrada.</td></tr>";return}data.forEach(p=>{lista.innerHTML+=`<tr><td>${p.data_producao||""}</td><td>${p.codigo_produto||""}</td><td>${p.descricao_produto||""}</td><td>${p.lote_produto||""}</td><td>${p.quantidade_produzida||0}</td><td><button onclick="verItensProducao(${p.id})">Detalhes</button></td></tr>`})}async function verItensProducao(id){const{data,error}=await supa.from("producoes_prontas_itens").select("*").eq("producao_id",id).order("id");if(error){console.log(error);alert("Erro ao carregar itens da produção.");return}const lista=document.getElementById("lista-producao-itens");lista.innerHTML="";if(!data||data.length===0){lista.innerHTML="<tr><td colspan='7'>Nenhum item encontrado.</td></tr>";return}data.forEach(i=>{lista.innerHTML+=`<tr><td>${i.codigo_item||""}</td><td>${i.descricao_item||""}</td><td>${i.local_item||""}</td><td>${i.quantidade_por_produto||0}</td><td>${i.quantidade_baixada||0}</td><td>${i.estoque_antes||0}</td><td>${i.estoque_depois||0}</td></tr>`})}function limparPesquisaProducoes(){limparCampos(["prod-pesq-codigo","prod-pesq-lote","prod-pesq-data-inicio","prod-pesq-data-fim"]);document.getElementById("lista-producoes").innerHTML="";document.getElementById("lista-producao-itens").innerHTML=""}
 async function carregarUsuarios(){const{data}=await supa.from("usuarios").select("*").order("id",{ascending:false});const lista=document.getElementById("lista-usuarios");lista.innerHTML="";(data||[]).forEach(u=>{lista.innerHTML+=`<tr><td>${u.username}</td><td>${u.role}</td><td><button onclick="editarUsuario(${u.id})">Editar</button><button onclick="excluirUsuario(${u.id})" style="background:#c0392b;">Excluir</button></td></tr>`})}async function salvarUsuario(){const id=document.getElementById("usuario-id").value;const dados={username:document.getElementById("novo-user").value.trim(),senha:document.getElementById("nova-senha").value.trim(),role:document.getElementById("role").value};let error;if(id){({error}=await supa.from("usuarios").update(dados).eq("id",id))}else{({error}=await supa.from("usuarios").insert([dados]))}if(error){console.log(error);alert("Erro ao salvar usuário");return}alert("Usuário salvo!");limparUsuario();carregarUsuarios()}async function editarUsuario(id){const{data}=await supa.from("usuarios").select("*").eq("id",id).maybeSingle();document.getElementById("usuario-id").value=data.id;document.getElementById("novo-user").value=data.username;document.getElementById("nova-senha").value=data.senha;document.getElementById("role").value=data.role}async function excluirUsuario(id){if(!confirm("Excluir usuário?"))return;const{error}=await supa.from("usuarios").delete().eq("id",id);if(error){console.log(error);alert("Erro ao excluir usuário");return}carregarUsuarios()}function limparUsuario(){limparCampos(["usuario-id","novo-user","nova-senha"]);document.getElementById("role").value="user"}
 function atualizarPreviewNotas(){const box=document.getElementById("preview-notas");if(!box)return;box.innerHTML="";notasAtuais.forEach((url,index)=>{box.innerHTML+=`<div class="galeria-item"><img src="${url}"><button onclick="removerNotaAtual(${index})">×</button></div>`});document.getElementById("mov-nota-url").value=JSON.stringify(notasAtuais)}function removerNotaAtual(index){notasAtuais.splice(index,1);atualizarPreviewNotas()}const inputNotaFiscal=document.getElementById("mov-nota-file");if(inputNotaFiscal){inputNotaFiscal.addEventListener("change",function(){const box=document.getElementById("preview-notas");if(!box)return;Array.from(this.files||[]).forEach(file=>{const url=URL.createObjectURL(file);box.innerHTML+=`<div class="galeria-item"><img src="${url}"></div>`})})}
+
+/* ================= LOTE INTERNO DOS ITENS ================= */
+
+window.dataHoje = function(){
+  return new Date().toISOString().slice(0,10);
+};
+
+window.iniciarAbaLoteInterno = function(){
+  const data = document.getElementById("lote-data");
+  if(data && !data.value){
+    data.value = window.dataHoje();
+  }
+};
+
+window.buscarItemParaLoteInterno = async function(){
+  const codigo = document.getElementById("lote-codigo").value.trim();
+
+  if(!codigo) return;
+
+  const { data, error } = await supa
+    .from("produtos")
+    .select("*")
+    .eq("codigo", codigo)
+    .maybeSingle();
+
+  if(error || !data){
+    console.log(error);
+    alert("Item não encontrado no cadastro/estoque.");
+    document.getElementById("lote-produto-id").value = "";
+    document.getElementById("lote-produto").value = "";
+    document.getElementById("lote-local").value = "";
+    return;
+  }
+
+  document.getElementById("lote-produto-id").value = data.id;
+  document.getElementById("lote-produto").value = data.produto || "";
+  document.getElementById("lote-local").value = data.local || "";
+
+  if(!document.getElementById("lote-data").value){
+    document.getElementById("lote-data").value = window.dataHoje();
+  }
+};
+
+window.salvarLoteInterno = async function(){
+  const id = document.getElementById("lote-id").value;
+
+  const dados = {
+    produto_id: Number(document.getElementById("lote-produto-id").value),
+    codigo: document.getElementById("lote-codigo").value.trim(),
+    produto: document.getElementById("lote-produto").value.trim(),
+    local: document.getElementById("lote-local").value.trim(),
+    lote_interno: document.getElementById("lote-numero").value.trim(),
+    data_entrada: document.getElementById("lote-data").value || window.dataHoje()
+  };
+
+  if(!dados.produto_id || !dados.codigo || !dados.produto || !dados.lote_interno){
+    alert("Preencha código e lote interno.");
+    return;
+  }
+
+  let error;
+
+  if(id){
+    ({ error } = await supa
+      .from("lotes_internos")
+      .update(dados)
+      .eq("id", id));
+  }else{
+    ({ error } = await supa
+      .from("lotes_internos")
+      .insert([dados]));
+  }
+
+  if(error){
+    console.log(error);
+    alert("Erro ao salvar lote interno.");
+    return;
+  }
+
+  alert("Lote interno salvo com sucesso!");
+  window.limparLoteInterno();
+  window.pesquisarLotesInternos();
+};
+
+window.pesquisarLotesInternos = async function(){
+  const codigo = document.getElementById("lote-pesq-codigo").value.trim();
+  const lote = document.getElementById("lote-pesq-lote").value.trim();
+  const dataInicio = document.getElementById("lote-pesq-data-inicio").value;
+  const dataFim = document.getElementById("lote-pesq-data-fim").value;
+
+  let query = supa
+    .from("lotes_internos")
+    .select("*")
+    .order("data_entrada", { ascending:false })
+    .order("id", { ascending:false });
+
+  if(codigo) query = query.eq("codigo", codigo);
+  if(lote) query = query.ilike("lote_interno", "%" + lote + "%");
+  if(dataInicio) query = query.gte("data_entrada", dataInicio);
+  if(dataFim) query = query.lte("data_entrada", dataFim);
+
+  const { data, error } = await query;
+
+  if(error){
+    console.log(error);
+    alert("Erro ao pesquisar lotes internos.");
+    return;
+  }
+
+  const lista = document.getElementById("lista-lotes-internos");
+  lista.innerHTML = "";
+
+  if(!data || data.length === 0){
+    lista.innerHTML = "<tr><td colspan='6'>Nenhum lote interno encontrado.</td></tr>";
+    return;
+  }
+
+  data.forEach(l=>{
+    lista.innerHTML += `
+      <tr>
+        <td>${l.codigo || ""}</td>
+        <td>${l.produto || ""}</td>
+        <td>${l.local || ""}</td>
+        <td>${l.lote_interno || ""}</td>
+        <td>${l.data_entrada || ""}</td>
+        <td>
+          <button onclick="window.editarLoteInterno(${l.id})">Editar</button>
+          <button onclick="window.excluirLoteInterno(${l.id})" style="background:#c0392b;">Excluir</button>
+        </td>
+      </tr>
+    `;
+  });
+};
+
+window.editarLoteInterno = async function(id){
+  const { data, error } = await supa
+    .from("lotes_internos")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if(error || !data){
+    alert("Lote interno não encontrado.");
+    return;
+  }
+
+  document.getElementById("lote-id").value = data.id;
+  document.getElementById("lote-produto-id").value = data.produto_id || "";
+  document.getElementById("lote-codigo").value = data.codigo || "";
+  document.getElementById("lote-produto").value = data.produto || "";
+  document.getElementById("lote-local").value = data.local || "";
+  document.getElementById("lote-data").value = data.data_entrada || window.dataHoje();
+  document.getElementById("lote-numero").value = data.lote_interno || "";
+};
+
+window.excluirLoteInterno = async function(id){
+  if(!confirm("Excluir lote interno?")) return;
+
+  const { error } = await supa
+    .from("lotes_internos")
+    .delete()
+    .eq("id", id);
+
+  if(error){
+    console.log(error);
+    alert("Erro ao excluir lote interno.");
+    return;
+  }
+
+  window.pesquisarLotesInternos();
+};
+
+window.limparLoteInterno = function(){
+  limparCampos(["lote-id","lote-produto-id","lote-codigo","lote-produto","lote-local","lote-numero"]);
+  document.getElementById("lote-data").value = window.dataHoje();
+};
+
+window.limparPesquisaLotesInternos = function(){
+  limparCampos(["lote-pesq-codigo","lote-pesq-lote","lote-pesq-data-inicio","lote-pesq-data-fim"]);
+  document.getElementById("lista-lotes-internos").innerHTML = "";
+};
+
 </script>
 </body>
 </html>
