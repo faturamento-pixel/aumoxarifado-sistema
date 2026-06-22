@@ -29,7 +29,8 @@ table{width:100%;margin-top:20px;border-collapse:collapse;min-width:950px}th,td{
 </style>
 </head>
 <body>
-<div class="sidebar" id="menu"><div><h2>Mercadorias</h2><p id="user-info"></p><hr style="margin:15px 0;border:none;border-top:1px solid #eee;"><button onclick="irPara('pesquisar')">Pesquisar Movimentações</button><button onclick="irPara('registrar')">Registrar Entrada/Saída</button><button onclick="irPara('cadastro')">Cadastro</button><button onclick="irPara('estoque')">Estoque</button><button onclick="irPara('produto-pronto')">Produto Pronto</button><button onclick="irPara('detalhes-embalagens')">Produção / Baixa</button><button onclick="irPara('producoes')">Produções</button><button id="btn-usuarios" onclick="irPara('usuarios')" style="display:none;">Usuários</button></div><button onclick="logout()">Sair</button></div>
+<div class="sidebar" id="menu"><div><h2>Mercadorias</h2><p id="user-info"></p><hr style="margin:15px 0;border:none;border-top:1px solid #eee;"><button onclick="irPara('pesquisar')">Pesquisar Movimentações</button><button onclick="irPara('registrar')">Registrar Entrada/Saída</button><button onclick="irPara('cadastro')">Cadastro</button><button onclick="irPara('estoque')">Estoque</button><button onclick="irPara('produto-pronto')">Produto Pronto</button><button onclick="irPara('detalhes-embalagens')">Produção / Baixa</button><button onclick="irPara('producoes')">Produções</button>
+    <button onclick="irPara('lote-interno')">Entrada de Lote Interno</button><button id="btn-usuarios" onclick="irPara('usuarios')" style="display:none;">Usuários</button></div><button onclick="logout()">Sair</button></div>
 <div class="main">
 <div id="login" class="login-container"><div class="login-box"><h1>Sofisticatto</h1><p>CONTROLE DE MERCADORIAS</p><input id="login-username" placeholder="Usuário"><input id="login-password" type="password" placeholder="Senha"><button onclick="fazerLogin()">Entrar</button></div></div>
 <div id="pesquisar" class="card hidden"><h2>Pesquisar Movimentações</h2><input id="pesq-codigo" placeholder="Código do item"><input id="pesq-lote" placeholder="Lote / observação"><label>Data de:</label><input id="pesq-data-inicio" type="date"><label>Até:</label><input id="pesq-data-fim" type="date"><button onclick="pesquisarMovimentos()">Pesquisar</button><button onclick="limparPesquisa()">Limpar</button><div class="table-wrap"><table><thead><tr><th>Foto</th><th>Tipo</th><th>Código</th><th>Descrição</th><th>Quantidade</th><th>Data</th><th>Lote/Obs.</th><th>Nota</th><th>Ações</th></tr></thead><tbody id="tabela-pesquisa"></tbody></table></div></div>
@@ -39,6 +40,45 @@ table{width:100%;margin-top:20px;border-collapse:collapse;min-width:950px}th,td{
 <div id="produto-pronto" class="card hidden"><h2>Cadastro de Produto Pronto e Itens Usados</h2><input id="pp-id" type="hidden"><input id="pp-codigo" placeholder="Código do produto pronto" onblur="buscarProdutoProntoPorCodigo()"><input id="pp-descricao" placeholder="Descrição do produto pronto"><button onclick="salvarProdutoPronto()">Salvar Produto Pronto</button><button onclick="limparProdutoPronto()">Novo</button><div class="info-box" id="produto-pronto-info">Salve ou edite um produto pronto para vincular itens.</div><h3>Adicionar Item ao Produto Pronto</h3><div class="grid-3"><input id="vinc-item-codigo" placeholder="Código do item" onblur="buscarItemParaVinculo()"><input id="vinc-item-descricao" placeholder="Descrição do item" readonly><input id="vinc-item-local" placeholder="Local" readonly></div><input id="vinc-item-id" type="hidden"><input id="vinc-qtd" type="number" step="0.01" placeholder="Quantidade usada por produto"><button onclick="adicionarItemProduto()">Adicionar Item</button><h3>Itens vinculados ao produto</h3><div class="table-wrap"><table><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>Qtd. por produto</th><th>Ações</th></tr></thead><tbody id="lista-vinculos"></tbody></table></div><h3>Lista de Produtos Prontos</h3><div class="table-wrap"><table><thead><tr><th>Código</th><th>Descrição</th><th>Ações</th></tr></thead><tbody id="lista-produtos-prontos"></tbody></table></div></div>
 <div id="detalhes-embalagens" class="card hidden"><h2>Produção / Baixa de Itens</h2><input id="det-codigo-produto" placeholder="Código do produto pronto" onblur="buscarProdutoProntoDetalhes()"><input id="det-descricao-produto" placeholder="Descrição do produto" readonly><input id="det-lote-produto" placeholder="Lote do produto pronto"><input id="det-quantidade" type="number" step="0.01" placeholder="Quantidade a ser produzida"><button onclick="pesquisarDetalhesEmbalagens()">Pesquisar</button><button onclick="registrarSaidaEmbalagensProduto()" style="background:#27ae60;">Registrar Produção / Dar Baixa</button><button onclick="limparDetalhesEmbalagens()">Limpar</button><div class="table-wrap"><table><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>Qtd. por produto</th><th>Necessário</th><th>Estoque atual</th><th>Estoque restante</th><th>Mínima</th><th>Status</th></tr></thead><tbody id="resultado-detalhes-embalagens"></tbody></table></div></div>
 <div id="producoes" class="card hidden"><h2>Pesquisar Produções</h2><input id="prod-pesq-codigo" placeholder="Código do produto pronto"><input id="prod-pesq-lote" placeholder="Lote do produto pronto"><label>Data de:</label><input id="prod-pesq-data-inicio" type="date"><label>Até:</label><input id="prod-pesq-data-fim" type="date"><button onclick="pesquisarProducoes()">Pesquisar</button><button onclick="limparPesquisaProducoes()">Limpar</button><h3>Produções</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Código</th><th>Produto</th><th>Lote</th><th>Quantidade</th><th>Ações</th></tr></thead><tbody id="lista-producoes"></tbody></table></div><h3>Itens da produção selecionada</h3><div class="table-wrap"><table><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>Qtd. por produto</th><th>Qtd. baixada</th><th>Antes</th><th>Depois</th></tr></thead><tbody id="lista-producao-itens"></tbody></table></div></div>
+
+<div id="lote-interno" class="card hidden">
+  <h2>Entrada de Lote Interno</h2>
+
+  <h3>Pesquisar Lotes Internos</h3>
+  <input id="lote-pesq-codigo" placeholder="Código do item">
+  <input id="lote-pesq-lote" placeholder="Lote interno">
+  <label>Data inicial:</label>
+  <input id="lote-pesq-data-inicio" type="date">
+  <label>Data final:</label>
+  <input id="lote-pesq-data-fim" type="date">
+
+  <button onclick="pesquisarLotesInternos()">Pesquisar</button>
+  <button onclick="limparPesquisaLotesInternos()">Limpar pesquisa</button>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th><th>Descrição</th><th>Local</th><th>Lote Interno</th><th>Data Entrada</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="lista-lotes-internos"></tbody>
+    </table>
+  </div>
+
+  <h3>Registrar Lote Interno</h3>
+  <input id="lote-id" type="hidden">
+  <input id="lote-produto-id" type="hidden">
+  <input id="lote-codigo" placeholder="Código do item" onblur="buscarItemParaLoteInterno()">
+  <input id="lote-produto" placeholder="Nome do produto" readonly>
+  <input id="lote-local" placeholder="Local" readonly>
+  <input id="lote-data" type="date">
+  <input id="lote-numero" placeholder="Lote interno">
+
+  <button onclick="salvarLoteInterno()">Registrar Lote</button>
+  <button onclick="limparLoteInterno()">Novo</button>
+</div>
+
 <div id="usuarios" class="card hidden"><h2>Usuários</h2><input id="usuario-id" type="hidden"><input id="novo-user" placeholder="Usuário"><input id="nova-senha" placeholder="Senha"><select id="role"><option value="user">Usuário</option><option value="admin">Administrador</option></select><button onclick="salvarUsuario()">Salvar</button><button onclick="limparUsuario()">Novo</button><h3>Lista de Usuários</h3><div class="table-wrap"><table><thead><tr><th>Usuário</th><th>Tipo</th><th>Ações</th></tr></thead><tbody id="lista-usuarios"></tbody></table></div></div>
 </div>
 <div id="modalNota" class="modal-img"><div class="modal-img-box"><img id="imagemNota"><br><br><button onclick="notaAnterior()">⬅ Anterior</button><button onclick="proximaNota()">Próxima ➡</button><a id="downloadNota" target="_blank" download><button>Baixar Nota</button></a><button onclick="fecharNota()" style="background:#c0392b;">Fechar</button></div></div>
@@ -48,7 +88,7 @@ let usuarioLogado=null,fotosSelecionadas=[],fotosAtuais=[],notasAtuais=[],notasM
 let carregandoVinculosToken=0;
 function numero(v){return Number(v||0)}function miniatura(url){return url?`<img class="thumb" src="${url}">`:`<div class="sem-foto">+</div>`}function limparCampos(ids){ids.forEach(id=>{const el=document.getElementById(id);if(el)el.value=""})}
 function abrirNotas(listaJson,primeiraUrl){try{notasModal=listaJson?JSON.parse(listaJson):[]}catch(e){notasModal=primeiraUrl?[primeiraUrl]:[]}if(!Array.isArray(notasModal))notasModal=primeiraUrl?[primeiraUrl]:[];if(primeiraUrl&&!notasModal.includes(primeiraUrl))notasModal.unshift(primeiraUrl);notasModal=notasModal.filter(Boolean);if(notasModal.length===0){alert("Sem nota fiscal.");return}notaAtualIndex=notasModal.indexOf(primeiraUrl);if(notaAtualIndex<0)notaAtualIndex=0;mostrarNotaAtual();document.getElementById("modalNota").style.display="flex"}function mostrarNotaAtual(){const url=notasModal[notaAtualIndex];document.getElementById("imagemNota").src=url;document.getElementById("downloadNota").href=url}function proximaNota(){if(notasModal.length===0)return;notaAtualIndex=(notaAtualIndex+1)%notasModal.length;mostrarNotaAtual()}function notaAnterior(){if(notasModal.length===0)return;notaAtualIndex=(notaAtualIndex-1+notasModal.length)%notasModal.length;mostrarNotaAtual()}function fecharNota(){document.getElementById("modalNota").style.display="none"}
-function irPara(secao){if(!usuarioLogado)return;["pesquisar","registrar","cadastro","estoque","produto-pronto","detalhes-embalagens","producoes","usuarios"].forEach(x=>document.getElementById(x).classList.add("hidden"));document.getElementById(secao).classList.remove("hidden");if(secao==="cadastro")carregarProdutos();if(secao==="estoque")carregarEstoque();if(secao==="usuarios")carregarUsuarios();if(secao==="produto-pronto"){carregarProdutosProntos();if(produtoProntoAtualId)carregarVinculosProduto()}}
+function irPara(secao){if(!usuarioLogado)return;["pesquisar","registrar","cadastro","estoque","produto-pronto","detalhes-embalagens","producoes","lote-interno","usuarios"].forEach(x=>document.getElementById(x).classList.add("hidden"));document.getElementById(secao).classList.remove("hidden");if(secao==="cadastro")carregarProdutos();if(secao==="estoque")carregarEstoque();if(secao==="usuarios")carregarUsuarios();if(secao==="produto-pronto"){carregarProdutosProntos();if(produtoProntoAtualId)carregarVinculosProduto()}}
 async function fazerLogin(){const user=document.getElementById("login-username").value.trim(),pass=document.getElementById("login-password").value.trim();const{data,error}=await supa.from("usuarios").select("*").eq("username",user).eq("senha",pass).maybeSingle();if(error||!data){alert("Login inválido");return}usuarioLogado=data;document.getElementById("login").classList.add("hidden");document.getElementById("menu").style.display="flex";document.getElementById("user-info").textContent="Logado: "+data.username;if(data.role==="admin")document.getElementById("btn-usuarios").style.display="block";irPara("pesquisar")}function logout(){location.reload()}
 async function uploadArquivo(file,prefixo){const ext=file.name.split(".").pop();const nome=prefixo+"_"+Date.now()+"_"+Math.random().toString(36).substring(2)+"."+ext;const{error}=await supa.storage.from("produtos").upload(nome,file,{upsert:true});if(error)throw error;const{data}=supa.storage.from("produtos").getPublicUrl(nome);return data.publicUrl}async function uploadNota(file){return uploadArquivo(file,"nota")}async function uploadFoto(file){return uploadArquivo(file,"produto")}
 async function buscarProdutoParaMovimento(){const codigo=document.getElementById("mov-codigo").value.trim();if(!codigo)return;const{data,error}=await supa.from("produtos").select("*").eq("codigo",codigo).maybeSingle();if(error||!data){alert("Item não encontrado no cadastro.");document.getElementById("mov-produto").value="";document.getElementById("mov-produto-id").value="";document.getElementById("mov-foto").value="";document.getElementById("mov-preview").innerHTML="+";return}document.getElementById("mov-produto-id").value=data.id;document.getElementById("mov-produto").value=data.produto;document.getElementById("mov-foto").value=data.foto_capa||"";document.getElementById("mov-preview").innerHTML=data.foto_capa?`<img src="${data.foto_capa}">`:"+"}
